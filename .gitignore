@@ -1,0 +1,20 @@
+# Compiled binaries
+physicscoin
+*.o
+
+# Build directory
+build/
+
+# State files
+state.pcs
+wallet.pcw
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
