@@ -108,6 +108,11 @@ void print_usage(void) {
     printf("API COMMANDS:\n");
     printf("  api serve [port]           Start JSON API server (default: 8545)\n");
     printf("\n");
+    
+    printf("NODE COMMANDS:\n");
+    printf("  node start [--port N]      Start P2P node daemon (default: 9333)\n");
+    printf("  node start --connect IP:PORT  Connect to seed node\n");
+    printf("\n");
 }
 
 void print_state(const PCState* state) {
@@ -851,6 +856,20 @@ int main(int argc, char** argv) {
             return 0;
         }
         printf("Unknown api command: %s\n", argv[2]);
+        return 1;
+    }
+    // Node commands
+    else if (strcmp(cmd, "node") == 0) {
+        if (argc < 3) {
+            printf("Usage: physicscoin node start [--port N] [--connect IP:PORT]\n");
+            return 1;
+        }
+        if (strcmp(argv[2], "start") == 0) {
+            // Forward declare node main
+            extern int pc_node_main(int argc, char** argv);
+            return pc_node_main(argc - 2, argv + 2);
+        }
+        printf("Unknown node command: %s\n", argv[2]);
         return 1;
     }
     else {
