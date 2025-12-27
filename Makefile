@@ -2,7 +2,7 @@
 
 CC = gcc
 CFLAGS = -O3 -Wall -Wextra -march=native -I./include
-LDFLAGS = -lm
+LDFLAGS = -lm -lsecp256k1
 
 SRC_DIR = src
 BUILD_DIR = build
