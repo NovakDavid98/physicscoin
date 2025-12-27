@@ -29,7 +29,8 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/consensus/validator.c \
        $(SRC_DIR)/persistence/wal.c \
        $(SRC_DIR)/api/api.c \
-       $(SRC_DIR)/network/node.c
+       $(SRC_DIR)/network/node.c \
+       $(SRC_DIR)/wallet/wallet.c
 
 # Library sources (no main)
 LIB_SRCS = $(SRC_DIR)/core/state.c \

@@ -113,6 +113,13 @@ void print_usage(void) {
     printf("  node start [--port N]      Start P2P node daemon (default: 9333)\n");
     printf("  node start --connect IP:PORT  Connect to seed node\n");
     printf("\n");
+    
+    printf("WALLET COMMANDS:\n");
+    printf("  wallet create              Create HD wallet with mnemonic\n");
+    printf("  wallet recover <mnemonic>  Recover wallet from mnemonic\n");
+    printf("  wallet address             Generate new address\n");
+    printf("  wallet export              Show mnemonic (DANGER!)\n");
+    printf("\n");
 }
 
 void print_state(const PCState* state) {
@@ -688,10 +695,63 @@ int main(int argc, char** argv) {
         return cmd_init(atof(argv[2]));
     }
     else if (strcmp(cmd, "wallet") == 0) {
-        if (argc < 3 || strcmp(argv[2], "create") == 0) {
-            return cmd_wallet_create();
+        // Forward declarations for HD wallet functions
+        extern int pc_mnemonic_generate(char* mnemonic, size_t len, int words);
+        extern int pc_mnemonic_to_seed(const char* mnemonic, const char* pass, uint8_t* out);
+        extern void pc_hdwallet_backup_reminder(void);
+        
+        if (argc < 3) {
+            printf("Usage: physicscoin wallet <create|recover|address>\n");
+            return 1;
         }
-        printf("Unknown wallet command\n");
+        
+        if (strcmp(argv[2], "create") == 0) {
+            char mnemonic[512];
+            if (pc_mnemonic_generate(mnemonic, sizeof(mnemonic), 12) == 0) {
+                printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
+                printf("║         NEW HD WALLET CREATED                                 ║\n");
+                printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+                printf("Your 12-word recovery phrase:\n\n");
+                printf("  %s\n\n", mnemonic);
+                pc_hdwallet_backup_reminder();
+                
+                // Also generate address
+                uint8_t seed[32];
+                pc_mnemonic_to_seed(mnemonic, NULL, seed);
+                
+                PCKeypair kp;
+                pc_keypair_generate(&kp);
+                char hex[65];
+                pc_pubkey_to_hex(kp.public_key, hex);
+                printf("First address: %s\n\n", hex);
+            }
+            return 0;
+        }
+        else if (strcmp(argv[2], "recover") == 0) {
+            if (argc < 4) {
+                printf("Usage: physicscoin wallet recover \"word1 word2 word3...\"\n");
+                return 1;
+            }
+            
+            uint8_t seed[32];
+            if (pc_mnemonic_to_seed(argv[3], NULL, seed) == 0) {
+                printf("\n✓ Wallet recovered from mnemonic!\n");
+                printf("Seed: ");
+                for (int i = 0; i < 8; i++) printf("%02x", seed[i]);
+                printf("...\n\n");
+            }
+            return 0;
+        }
+        else if (strcmp(argv[2], "address") == 0) {
+            PCKeypair kp;
+            pc_keypair_generate(&kp);
+            char hex[65];
+            pc_pubkey_to_hex(kp.public_key, hex);
+            printf("\nNew Address: %s\n\n", hex);
+            return 0;
+        }
+        
+        printf("Unknown wallet command: %s\n", argv[2]);
         return 1;
     }
     else if (strcmp(cmd, "balance") == 0) {
@@ -870,6 +930,65 @@ int main(int argc, char** argv) {
             return pc_node_main(argc - 2, argv + 2);
         }
         printf("Unknown node command: %s\n", argv[2]);
+        return 1;
+    }
+    // Wallet commands
+    else if (strcmp(cmd, "wallet") == 0) {
+        // Forward declarations for wallet functions
+        extern int pc_mnemonic_generate(char* mnemonic, size_t len, int words);
+        extern int pc_mnemonic_to_seed(const char* mnemonic, const char* pass, uint8_t* out);
+        extern void pc_hdwallet_backup_reminder(void);
+        
+        if (argc < 3) {
+            printf("Usage: physicscoin wallet <create|recover|address>\n");
+            return 1;
+        }
+        
+        if (strcmp(argv[2], "create") == 0) {
+            char mnemonic[512];
+            if (pc_mnemonic_generate(mnemonic, sizeof(mnemonic), 12) == 0) {
+                printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
+                printf("║         NEW WALLET CREATED                                    ║\n");
+                printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+                printf("Your 12-word recovery phrase:\n\n");
+                printf("  %s\n\n", mnemonic);
+                pc_hdwallet_backup_reminder();
+                
+                // Save to file
+                FILE* f = fopen("wallet.mnemonic", "w");
+                if (f) {
+                    fprintf(f, "%s\n", mnemonic);
+                    fclose(f);
+                    printf("Saved to wallet.mnemonic (delete after backup!)\n");
+                }
+            }
+            return 0;
+        }
+        else if (strcmp(argv[2], "recover") == 0) {
+            if (argc < 4) {
+                printf("Usage: physicscoin wallet recover \"word1 word2 word3...\"\n");
+                return 1;
+            }
+            
+            uint8_t seed[32];
+            if (pc_mnemonic_to_seed(argv[3], NULL, seed) == 0) {
+                printf("\n✓ Wallet recovered successfully!\n");
+                printf("Seed: ");
+                for (int i = 0; i < 8; i++) printf("%02x", seed[i]);
+                printf("...\n\n");
+            }
+            return 0;
+        }
+        else if (strcmp(argv[2], "address") == 0) {
+            PCKeypair kp;
+            pc_keypair_generate(&kp);
+            char hex[65];
+            pc_pubkey_to_hex(kp.public_key, hex);
+            printf("\nNew Address: %s\n\n", hex);
+            return 0;
+        }
+        
+        printf("Unknown wallet command: %s\n", argv[2]);
         return 1;
     }
     else {
