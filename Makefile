@@ -13,6 +13,7 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/core/state.c \
        $(SRC_DIR)/core/proofs.c \
        $(SRC_DIR)/core/streams.c \
+       $(SRC_DIR)/core/subscriptions.c \
        $(SRC_DIR)/core/batch.c \
        $(SRC_DIR)/core/replay.c \
        $(SRC_DIR)/core/timetravel.c \
@@ -37,6 +38,7 @@ SRCS = $(SRC_DIR)/cli/main.c \
 LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/core/proofs.c \
            $(SRC_DIR)/core/streams.c \
+           $(SRC_DIR)/core/subscriptions.c \
            $(SRC_DIR)/core/batch.c \
            $(SRC_DIR)/core/replay.c \
            $(SRC_DIR)/core/timetravel.c \
