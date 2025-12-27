@@ -14,11 +14,38 @@ Replace **500 GB blockchain** with a **244-byte state vector**.
 
 ---
 
+<div align="center">
+
+## ⚛️ **The Physics of Money**
+
+![Mathematical Foundation Animation](datagraphics/physicscoin_math_foundation.gif)
+
+*Security through mathematics, not computation. Conservation laws make double-spending impossible.*
+
+</div>
+
+---
+
 ## 📐 [Mathematical Foundation →](MATHEMATICAL_FOUNDATION.md)
 
 PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is modeled as a **dynamical system** governed by differential equations rather than blockchain logs.
 
-**Read how:** [$\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$](MATHEMATICAL_FOUNDATION.md) became a cryptocurrency.
+> **The Core Equation:** $\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$
+>
+> Where $\Psi$ is the state vector, $I$ are transactions, $R$ is conservation resistance, and the system naturally blocks invalid states.
+
+[📖 Read the full mathematical foundation →](MATHEMATICAL_FOUNDATION.md)
+
+---
+
+## 📚 Table of Contents
+
+- [**Theoretical Core**](MATHEMATICAL_FOUNDATION.md) — *The math replacing blockchain*
+- [**Quick Start**](#-testnet-quick-start) — *Run a node in 30 seconds*
+- [**Key Features**](#-whats-new-in-v25-proof-of-conservation-consensus) — *Consensus, Streaming, Delta Sync*
+- [**Documentation**](#-documentation) — *Whitepaper & Guides*
+- [**Performance**](#-performance-visualizations) — *Benchmarks & Comparison*
+- [**Ecosystem**](#-sdks--integration) — *SDKs & Community*
 
 ---
 
