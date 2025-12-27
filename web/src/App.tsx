@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import * as API from './services/api'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface WalletState {
   address: string | null
@@ -31,7 +32,8 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'send' | 'receive' | 'streams' | 'proofs' | 'history'>('dashboard')
   const [showMnemonic, setShowMnemonic] = useState(false)
-  const [nodeStatus, setNodeStatus] = useState({ peers: 0, version: 0, wallets: 0 })
+  const [showMnemonic, setShowMnemonic] = useState(false)
+  const [nodeStatus, setNodeStatus] = useState({ peers: 0, version: 0, wallets: 0, tx_count: 0 })
 
   // Streaming state
   const [streams, setStreams] = useState<Array<{ id: string, to: string, rate: number, started: number, accumulated: number }>>([])
@@ -41,30 +43,85 @@ function App() {
   // Proof state
   const [proof, setProof] = useState<{ address: string, balance: number, hash: string, timestamp: number } | null>(null)
 
+  // Notification state
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null)
+
+  const notify = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }
+
+  // Wallet persistence functions
+  const saveWallet = (address: string, mnemonic: string) => {
+    const walletData = { address, mnemonic }
+    localStorage.setItem('physicscoin_wallet', JSON.stringify(walletData))
+  }
+
+  const loadWallet = () => {
+    const saved = localStorage.getItem('physicscoin_wallet')
+    if (saved) {
+      try {
+        return JSON.parse(saved) as { address: string, mnemonic: string }
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+
+  const logout = () => {
+    localStorage.removeItem('physicscoin_wallet')
+    setWallet({ address: null, balance: 0, mnemonic: null, connected: false })
+    setTransactions([])
+    setStreams([])
+    setProof(null)
+  }
+
+  // Auto-load wallet on startup
+  useEffect(() => {
+    const saved = loadWallet()
+    if (saved) {
+      setWallet({
+        address: saved.address,
+        balance: 0,
+        mnemonic: saved.mnemonic,
+        connected: true
+      })
+      // Fetch balance
+      API.getBalance(saved.address).then(data => {
+        setWallet(prev => ({ ...prev, balance: data.balance }))
+      }).catch(() => { })
+    }
+  }, [])
+
   // Create wallet using real API
   const createWallet = async () => {
     try {
       const result = await API.createWallet()
       setWallet({
         address: result.address,
-        balance: 0,
+        balance: (result as { balance?: number }).balance || 1000,
         mnemonic: result.mnemonic,
         connected: true
       })
-      setShowMnemonic(true)
 
-      // Fetch initial balance
+      // Save to localStorage
+      saveWallet(result.address, result.mnemonic)
+      setShowMnemonic(true)
+      notify('Wallet created successfully!', 'success')
+
+      // Fetch real balance
       setTimeout(async () => {
         try {
           const balanceData = await API.getBalance(result.address)
           setWallet(prev => ({ ...prev, balance: balanceData.balance }))
         } catch {
-          // Wallet not in state yet, that's ok
+          // Wallet might not be in state yet
         }
       }, 500)
     } catch (error) {
       console.error('Failed to create wallet:', error)
-      alert('Failed to create wallet. Is the API server running?')
+      notify('Failed to create wallet. Is API running?', 'error')
     }
   }
 
@@ -91,9 +148,10 @@ function App() {
       setSendTo('')
       setSendAmount('')
       setActiveTab('history')
+      notify(`Sent ${amount} PCS successfully!`, 'success')
     } catch (error) {
       console.error('Transaction failed:', error)
-      alert('Transaction failed. Check console for details.')
+      notify('Transaction failed. Check console.', 'error')
     } finally {
       setLoading(false)
     }
@@ -113,9 +171,10 @@ function App() {
       try {
         const data = await API.getStatus()
         setNodeStatus({
-          peers: 0,
+          peers: data.peers || 1,
           version: parseFloat(data.version) || 1,
-          wallets: data.wallets
+          wallets: data.wallets,
+          tx_count: data.tx_count || 0
         })
 
         // Update balance if wallet is connected
@@ -194,6 +253,15 @@ function App() {
 
   return (
     <div className="app">
+      {/* Notifications */}
+      {notification && (
+        <div className={`notification ${notification.type}`}>
+          {notification.type === 'success' && '✅ '}
+          {notification.type === 'error' && '❌ '}
+          {notification.type === 'info' && 'ℹ️ '}
+          {notification.message}
+        </div>
+      )}
       {/* Mnemonic Modal */}
       {showMnemonic && wallet.mnemonic && (
         <div className="modal-overlay" onClick={() => setShowMnemonic(false)}>
@@ -236,6 +304,9 @@ function App() {
           <div className="status-item">
             <span>v{nodeStatus.version}</span>
           </div>
+          <button className="btn btn-secondary btn-sm" onClick={logout} style={{ marginLeft: '1rem' }}>
+            Logout
+          </button>
         </div>
       </header>
 
@@ -273,15 +344,15 @@ function App() {
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-value">116K</div>
-                <div className="stat-label">Network TPS</div>
+                <div className="stat-label">Max TPS</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">{transactions.length}</div>
-                <div className="stat-label">Transactions</div>
+                <div className="stat-value">{nodeStatus.tx_count}</div>
+                <div className="stat-label">Total Transactions</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">0</div>
-                <div className="stat-label">Pending</div>
+                <div className="stat-value">{nodeStatus.wallets}</div>
+                <div className="stat-label">Active Wallets</div>
               </div>
             </div>
 
@@ -361,8 +432,8 @@ function App() {
               <h2>Receive PhysicsCoin</h2>
 
               <div className="qr-placeholder">
-                <div className="qr-code">
-                  📱
+                <div className="qr-code" style={{ padding: '1rem' }}>
+                  {wallet.address && <QRCodeSVG value={wallet.address} size={180} />}
                 </div>
                 <p>Scan to receive</p>
               </div>

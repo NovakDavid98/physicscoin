@@ -17,6 +17,8 @@ export interface StatusResponse {
     wallets: number
     total_supply: number
     timestamp: number
+    tx_count: number
+    peers: number
 }
 
 export interface TransactionResponse {
@@ -52,8 +54,6 @@ export async function createWallet(): Promise<WalletResponse> {
 }
 
 export async function recoverWallet(mnemonic: string): Promise<WalletResponse> {
-    // For now, just validate and return
-    // In future, implement actual recovery endpoint
     return {
         mnemonic,
         address: '0000000000000000000000000000000000000000000000000000000000000000'

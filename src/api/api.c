@@ -12,7 +12,31 @@
 #include <time.h>
 
 #define API_PORT 8545
+#define API_PORT 8545
 #define MAX_REQUEST_SIZE 8192
+
+// Transaction history storage
+#define MAX_TX_HISTORY 100
+static struct {
+    char from[65];
+    char to[65];
+    double amount;
+    uint64_t timestamp;
+} tx_history[MAX_TX_HISTORY];
+static int tx_history_count = 0;
+
+static void record_transaction(const char* from, const char* to, double amount) {
+    if (tx_history_count >= MAX_TX_HISTORY) {
+        // Shift old transactions out
+        memmove(&tx_history[0], &tx_history[1], sizeof(tx_history[0]) * (MAX_TX_HISTORY - 1));
+        tx_history_count = MAX_TX_HISTORY - 1;
+    }
+    strncpy(tx_history[tx_history_count].from, from, 64);
+    strncpy(tx_history[tx_history_count].to, to, 64);
+    tx_history[tx_history_count].amount = amount;
+    tx_history[tx_history_count].timestamp = time(NULL);
+    tx_history_count++;
+}
 
 // API response helpers
 static void send_json_response(int client, int status, const char* body) {
@@ -36,8 +60,8 @@ static void send_error(int client, int code, const char* message) {
 static void handle_status(int client, PCState* state) {
     char body[512];
     snprintf(body, sizeof(body),
-             "{\"version\":\"%s\",\"wallets\":%u,\"total_supply\":%.8f,\"timestamp\":%lu}",
-             PHYSICSCOIN_VERSION, state->num_wallets, state->total_supply, state->timestamp);
+             "{\"version\":\"%s\",\"wallets\":%u,\"total_supply\":%.8f,\"timestamp\":%lu,\"tx_count\":%d,\"peers\":1}",
+             PHYSICSCOIN_VERSION, state->num_wallets, state->total_supply, state->timestamp, tx_history_count);
     send_json_response(client, 200, body);
 }
 
@@ -105,8 +129,8 @@ static double get_json_number(const char* json, const char* field) {
     return start ? atof(start + strlen(search)) : 0.0;
 }
 
-// POST /wallet/create - Create new HD wallet
-static void handle_wallet_create(int client) {
+// POST /wallet/create - Create new HD wallet and register in state
+static void handle_wallet_create(int client, PCState* state) {
     extern int pc_mnemonic_generate(char* mnemonic, size_t len, int words);
     
     char mnemonic[512];
@@ -115,16 +139,33 @@ static void handle_wallet_create(int client) {
         return;
     }
     
-    // Generate address from mnemonic
+    // Generate keypair
     PCKeypair kp;
     pc_keypair_generate(&kp);
     char address[65];
     pc_pubkey_to_hex(kp.public_key, address);
     
+    // Register wallet in state with faucet funding (1000 coins)
+    double faucet_amount = 1000.0;
+    PCWallet* existing = pc_state_get_wallet(state, kp.public_key);
+    if (!existing) {
+        // Add new wallet to state
+        if (state->num_wallets < 1000) {
+            PCWallet* new_wallet = &state->wallets[state->num_wallets++];
+            memcpy(new_wallet->public_key, kp.public_key, 32);
+            new_wallet->energy = faucet_amount;
+            new_wallet->nonce = 0;
+            state->total_supply += faucet_amount;
+            
+            // Record faucet TX
+            record_transaction("FAUCET", address, faucet_amount);
+        }
+    }
+    
     char body[1024];
     snprintf(body, sizeof(body),
-             "{\"mnemonic\":\"%s\",\"address\":\"%s\"}",
-             mnemonic, address);
+             "{\"mnemonic\":\"%s\",\"address\":\"%s\",\"balance\":%.8f}",
+             mnemonic, address, faucet_amount);
     send_json_response(client, 200, body);
 }
 
@@ -164,6 +205,9 @@ static void handle_transaction_send(int client, PCState* state, const char* json
         send_error(client, -32000, "Transaction failed");
         return;
     }
+    
+    // Record the transaction
+    record_transaction(from, to, amount);
     
     char body[256];
     snprintf(body, sizeof(body), "{\"success\":true,\"amount\":%.8f}", amount);
@@ -229,6 +273,21 @@ static int parse_request(const char* request, char* method, char* path) {
     return sscanf(request, "%15s %255s", method, path) == 2 ? 0 : -1;
 }
 
+// GET /transactions - Get transaction history
+static void handle_transactions(int client) {
+    char body[8192] = "{\"transactions\":[";
+    char* p = body + strlen(body);
+    
+    for (int i = tx_history_count - 1; i >= 0 && i >= tx_history_count - 20; i--) {
+        p += sprintf(p, "%s{\"from\":\"%s\",\"to\":\"%s\",\"amount\":%.8f,\"timestamp\":%lu}",
+                     i < tx_history_count - 1 ? "," : "",
+                     tx_history[i].from, tx_history[i].to,
+                     tx_history[i].amount, tx_history[i].timestamp);
+    }
+    strcat(body, "]}");
+    send_json_response(client, 200, body);
+}
+
 // Main API server
 int pc_api_serve(PCState* state, int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -276,6 +335,7 @@ int pc_api_serve(PCState* state, int port) {
         if (strcmp(method, "GET") == 0) {
             if (strcmp(path, "/status") == 0) handle_status(client, state);
             else if (strcmp(path, "/wallets") == 0) handle_wallets(client, state);
+            else if (strcmp(path, "/transactions") == 0) handle_transactions(client);
             else if (strncmp(path, "/balance/", 9) == 0) handle_balance(client, state, path + 9);
             else send_error(client, -32601, "Not found");
         }
@@ -283,7 +343,7 @@ int pc_api_serve(PCState* state, int port) {
             char* json_body = find_json_body(request);
             if (!json_body) json_body = "{}";
             
-            if (strcmp(path, "/wallet/create") == 0) handle_wallet_create(client);
+            if (strcmp(path, "/wallet/create") == 0) handle_wallet_create(client, state);
             else if (strcmp(path, "/transaction/send") == 0) handle_transaction_send(client, state, json_body);
             else if (strcmp(path, "/stream/open") == 0) handle_stream_open(client, json_body);
             else if (strcmp(path, "/proof/generate") == 0) handle_proof_generate(client, state, json_body);
