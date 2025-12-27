@@ -32,15 +32,14 @@ PCError pc_proof_save(const PCBalanceProof* proof, const char* filename);
 PCError pc_proof_load(PCBalanceProof* proof, const char* filename);
 void pc_proof_print(const PCBalanceProof* proof);
 
-// From streams.c
-PCError pc_stream_open(PCState* state, const PCKeypair* payer_kp,
-                       const uint8_t* receiver, double rate_per_second,
-                       uint8_t* stream_id_out);
-double pc_stream_accumulated(const uint8_t* stream_id);
-PCError pc_stream_settle(PCState* state, const uint8_t* stream_id, const PCKeypair* payer_kp);
-PCError pc_stream_close(PCState* state, const uint8_t* stream_id, const PCKeypair* payer_kp);
-PCError pc_stream_info(const uint8_t* stream_id, double* rate, double* total, int* active);
-void pc_stream_print(const uint8_t* stream_id);
+// From streams.c - actual API signatures
+uint64_t pc_stream_open(const uint8_t* payer, const uint8_t* receiver,
+                        double rate_per_second, double max_amount,
+                        const uint8_t* authorization_sig);
+double pc_stream_accumulated(uint64_t stream_id);
+PCError pc_stream_settle(uint64_t stream_id, PCState* state);
+PCError pc_stream_close(uint64_t stream_id, PCState* state);
+void pc_stream_info(uint64_t stream_id);
 
 // From delta.c
 typedef struct {
@@ -451,18 +450,16 @@ int cmd_stream_open(const char* to_addr, double rate) {
         return 1;
     }
     
-    uint8_t stream_id[16];
-    PCError err = pc_stream_open(&state, &kp, to_pubkey, rate, stream_id);
-    if (err != PC_OK) {
-        printf("Error: %s\n", pc_strerror(err));
+    // Use actual streams.c API: returns uint64_t stream ID
+    uint64_t stream_id = pc_stream_open(kp.public_key, to_pubkey, rate, 1e15, NULL);
+    if (stream_id == 0) {
+        printf("Error: Failed to open stream\n");
         pc_state_free(&state);
         return 1;
     }
     
     printf("✓ Payment stream opened!\n");
-    printf("Stream ID: ");
-    for (int i = 0; i < 16; i++) printf("%02x", stream_id[i]);
-    printf("\n");
+    printf("Stream ID: %lu\n", stream_id);
     printf("Rate: %.12f /sec\n", rate);
     printf("Recipient: %.16s...\n", to_addr);
     
@@ -490,20 +487,21 @@ int cmd_stream_demo(void) {
     
     PCState state;
     pc_state_genesis(&state, alice.public_key, 1000.0);
+    
+    // IMPORTANT: Create Bob's wallet in state BEFORE opening stream
+    // The stream settlement looks up wallets by pubkey in the state
     pc_state_create_wallet(&state, bob.public_key, 0);
     
     printf("\n═══ Initial State ═══\n");
     printf("Alice: %.8f\n", pc_state_get_wallet(&state, alice.public_key)->energy);
     printf("Bob:   %.8f\n", pc_state_get_wallet(&state, bob.public_key)->energy);
     
-    // Open stream: 1 coin per second
-    uint8_t stream_id[16];
-    pc_stream_open(&state, &alice, bob.public_key, 1.0, stream_id);
+    // Open stream: 1 coin per second (using actual streams.c API)
+    // Returns uint64_t stream ID, not error code
+    uint64_t stream_id = pc_stream_open(alice.public_key, bob.public_key, 1.0, 1000.0, NULL);
     
     printf("\n═══ Stream Opened: 1.0 coin/sec ═══\n");
-    printf("Stream ID: ");
-    for (int i = 0; i < 8; i++) printf("%02x", stream_id[i]);
-    printf("...\n");
+    printf("Stream ID: %lu\n", stream_id);
     
     // Simulate time passing
     printf("\n═══ Simulating 5 seconds ═══\n");
@@ -513,17 +511,17 @@ int cmd_stream_demo(void) {
         printf("t=%d: Accumulated: %.8f\n", i, acc);
     }
     
-    // Settle
+    // Settle (using actual streams.c API: stream_id first, then state)
     printf("\n═══ Settlement ═══\n");
-    PCError err = pc_stream_settle(&state, stream_id, &alice);
+    PCError err = pc_stream_settle(stream_id, &state);
     printf("Settlement: %s\n", err == PC_OK ? "✓ Success" : pc_strerror(err));
     
     printf("\n═══ Final Balances ═══\n");
     printf("Alice: %.8f\n", pc_state_get_wallet(&state, alice.public_key)->energy);
     printf("Bob:   %.8f\n", pc_state_get_wallet(&state, bob.public_key)->energy);
     
-    // Close stream
-    pc_stream_close(&state, stream_id, &alice);
+    // Close stream (using actual streams.c API)
+    pc_stream_close(stream_id, &state);
     printf("\n✓ Stream closed\n");
     
     // Verify conservation
