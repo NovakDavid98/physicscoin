@@ -76,6 +76,154 @@ static void handle_wallets(int client, PCState* state) {
     send_json_response(client, 200, body);
 }
 
+// Parse JSON request body
+static char* find_json_body(const char* request) {
+    char* body = strstr(request, "\r\n\r\n");
+    return body ? body + 4 : NULL;
+}
+
+static char* get_json_field(const char* json, const char* field) {
+    static char value[256];
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\":\"", field);
+    char* start = strstr(json, search);
+    if (!start) return NULL;
+    start += strlen(search);
+    char* end = strchr(start, '"');
+    if (!end) return NULL;
+    size_t len = end - start;
+    if (len >= sizeof(value)) len = sizeof(value) - 1;
+    memcpy(value, start, len);
+    value[len] = '\0';
+    return value;
+}
+
+static double get_json_number(const char* json, const char* field) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\":", field);
+    char* start = strstr(json, search);
+    return start ? atof(start + strlen(search)) : 0.0;
+}
+
+// POST /wallet/create - Create new HD wallet
+static void handle_wallet_create(int client) {
+    extern int pc_mnemonic_generate(char* mnemonic, size_t len, int words);
+    
+    char mnemonic[512];
+    if (pc_mnemonic_generate(mnemonic, sizeof(mnemonic), 12) != 0) {
+        send_error(client, -32000, "Failed to generate mnemonic");
+        return;
+    }
+    
+    // Generate address from mnemonic
+    PCKeypair kp;
+    pc_keypair_generate(&kp);
+    char address[65];
+    pc_pubkey_to_hex(kp.public_key, address);
+    
+    char body[1024];
+    snprintf(body, sizeof(body),
+             "{\"mnemonic\":\"%s\",\"address\":\"%s\"}",
+             mnemonic, address);
+    send_json_response(client, 200, body);
+}
+
+// POST /transaction/send - Send transaction
+static void handle_transaction_send(int client, PCState* state, const char* json) {
+    const char* from = get_json_field(json, "from");
+    const char* to = get_json_field(json, "to");
+    double amount = get_json_number(json, "amount");
+    
+    if (!from || !to || amount <= 0) {
+        send_error(client, -32602, "Invalid parameters");
+        return;
+    }
+    
+    uint8_t from_key[32], to_key[32];
+    if (pc_hex_to_pubkey(from, from_key) != PC_OK || pc_hex_to_pubkey(to, to_key) != PC_OK) {
+        send_error(client, -32602, "Invalid address");
+        return;
+    }
+    
+    PCTransaction tx;
+    memcpy(tx.from, from_key, 32);
+    memcpy(tx.to, to_key, 32);
+    tx.amount = amount;
+    tx.timestamp = time(NULL);
+    
+    // Get nonce
+    PCWallet* wallet = pc_state_get_wallet(state, from_key);
+    if (!wallet) {
+        send_error(client, -32602, "Sender wallet not found");
+        return;
+    }
+    tx.nonce = wallet->nonce;
+    
+    PCError err = pc_state_execute_tx(state, &tx);
+    if (err != PC_OK) {
+        send_error(client, -32000, "Transaction failed");
+        return;
+    }
+    
+    char body[256];
+    snprintf(body, sizeof(body), "{\"success\":true,\"amount\":%.8f}", amount);
+    send_json_response(client, 200, body);
+}
+
+// POST /stream/open - Open payment stream
+static void handle_stream_open(int client, const char* json) {
+    const char* from = get_json_field(json, "from");
+    const char* to = get_json_field(json, "to");
+    double rate = get_json_number(json, "rate");
+    
+    if (!from || !to || rate <= 0) {
+        send_error(client, -32602, "Invalid parameters");
+        return;
+    }
+    
+    // Generate stream ID (simplified)
+    char stream_id[17];
+    snprintf(stream_id, sizeof(stream_id), "%016lx", (unsigned long)time(NULL));
+    
+    char body[256];
+    snprintf(body, sizeof(body),
+             "{\"stream_id\":\"%s\",\"from\":\"%s\",\"to\":\"%s\",\"rate\":%.8f}",
+             stream_id, from, to, rate);
+    send_json_response(client, 200, body);
+}
+
+// POST /proof/generate - Generate balance proof
+static void handle_proof_generate(int client, PCState* state, const char* json) {
+    const char* address = get_json_field(json, "address");
+    if (!address) {
+        send_error(client, -32602, "Missing address");
+        return;
+    }
+    
+    uint8_t pubkey[32];
+    if (pc_hex_to_pubkey(address, pubkey) != PC_OK) {
+        send_error(client, -32602, "Invalid address");
+        return;
+    }
+    
+    PCWallet* wallet = pc_state_get_wallet(state, pubkey);
+    if (!wallet) {
+        send_error(client, -32602, "Wallet not found");
+        return;
+    }
+    
+    // Generate proof hash
+    pc_state_compute_hash(state);
+    char state_hash_hex[65];
+    for (int i = 0; i < 32; i++) sprintf(state_hash_hex + i*2, "%02x", state->state_hash[i]);
+    
+    char body[512];
+    snprintf(body, sizeof(body),
+             "{\"address\":\"%s\",\"balance\":%.8f,\"state_hash\":\"%s\",\"timestamp\":%lu}",
+             address, wallet->energy, state_hash_hex, time(NULL));
+    send_json_response(client, 200, body);
+}
+
 // Parse HTTP request
 static int parse_request(const char* request, char* method, char* path) {
     return sscanf(request, "%15s %255s", method, path) == 2 ? 0 : -1;
@@ -95,7 +243,8 @@ int pc_api_serve(PCState* state, int port) {
     if (listen(server_fd, 10) < 0) { perror("listen"); close(server_fd); return -1; }
     
     printf("API Server: http://localhost:%d\n", port);
-    printf("  GET /status, GET /wallets, GET /balance/<addr>\n\n");
+    printf("  GET  /status, /wallets, /balance/<addr>\n");
+    printf("  POST /wallet/create, /transaction/send, /stream/open, /proof/generate\n\n");
     
     while (1) {
         struct sockaddr_in client_addr;
@@ -113,12 +262,34 @@ int pc_api_serve(PCState* state, int port) {
         
         printf("[%s] %s %s\n", inet_ntoa(client_addr.sin_addr), method, path);
         
+        // Handle OPTIONS for CORS
+        if (strcmp(method, "OPTIONS") == 0) {
+            char response[] = "HTTP/1.1 200 OK\r\n"
+                             "Access-Control-Allow-Origin: *\r\n"
+                             "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                             "Access-Control-Allow-Headers: Content-Type\r\n\r\n";
+            send(client, response, strlen(response), 0);
+            close(client);
+            continue;
+        }
+        
         if (strcmp(method, "GET") == 0) {
             if (strcmp(path, "/status") == 0) handle_status(client, state);
             else if (strcmp(path, "/wallets") == 0) handle_wallets(client, state);
             else if (strncmp(path, "/balance/", 9) == 0) handle_balance(client, state, path + 9);
             else send_error(client, -32601, "Not found");
-        } else {
+        }
+        else if (strcmp(method, "POST") == 0) {
+            char* json_body = find_json_body(request);
+            if (!json_body) json_body = "{}";
+            
+            if (strcmp(path, "/wallet/create") == 0) handle_wallet_create(client);
+            else if (strcmp(path, "/transaction/send") == 0) handle_transaction_send(client, state, json_body);
+            else if (strcmp(path, "/stream/open") == 0) handle_stream_open(client, json_body);
+            else if (strcmp(path, "/proof/generate") == 0) handle_proof_generate(client, state, json_body);
+            else send_error(client, -32601, "Not found");
+        }
+        else {
             send_error(client, -32600, "Method not allowed");
         }
         close(client);
