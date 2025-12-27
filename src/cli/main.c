@@ -104,6 +104,10 @@ void print_usage(void) {
     printf("  consensus demo             Demo double-spend prevention\n");
     printf("  consensus status           Show consensus status\n");
     printf("\n");
+    
+    printf("API COMMANDS:\n");
+    printf("  api serve [port]           Start JSON API server (default: 8545)\n");
+    printf("\n");
 }
 
 void print_state(const PCState* state) {
@@ -821,6 +825,32 @@ int main(int argc, char** argv) {
             return 0;
         }
         printf("Unknown consensus command: %s\n", argv[2]);
+        return 1;
+    }
+    // API commands
+    else if (strcmp(cmd, "api") == 0) {
+        if (argc < 3) {
+            printf("Usage: physicscoin api serve [port]\n");
+            return 1;
+        }
+        if (strcmp(argv[2], "serve") == 0) {
+            // Forward declare api function
+            extern int pc_api_serve(PCState* state, int port);
+            
+            PCState state;
+            if (pc_state_load(&state, "state.pcs") != PC_OK) {
+                printf("Creating demo state for API...\n");
+                PCKeypair genesis;
+                pc_keypair_generate(&genesis);
+                pc_state_genesis(&state, genesis.public_key, 1000000.0);
+            }
+            
+            int port = (argc >= 4) ? atoi(argv[3]) : 8545;
+            pc_api_serve(&state, port);
+            pc_state_free(&state);
+            return 0;
+        }
+        printf("Unknown api command: %s\n", argv[2]);
         return 1;
     }
     else {

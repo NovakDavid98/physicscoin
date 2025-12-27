@@ -27,7 +27,8 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/consensus/ordering.c \
        $(SRC_DIR)/consensus/checkpoint.c \
        $(SRC_DIR)/consensus/validator.c \
-       $(SRC_DIR)/persistence/wal.c
+       $(SRC_DIR)/persistence/wal.c \
+       $(SRC_DIR)/api/api.c
 
 # Library sources (no main)
 LIB_SRCS = $(SRC_DIR)/core/state.c \
@@ -47,7 +48,8 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/consensus/ordering.c \
            $(SRC_DIR)/consensus/checkpoint.c \
            $(SRC_DIR)/consensus/validator.c \
-           $(SRC_DIR)/persistence/wal.c
+           $(SRC_DIR)/persistence/wal.c \
+           $(SRC_DIR)/api/api.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 LIB_OBJS = $(LIB_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
