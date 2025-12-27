@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import * as API from './services/api'
 
 interface WalletState {
   address: string | null
@@ -17,8 +18,6 @@ interface Transaction {
   incoming: boolean
 }
 
-const API_URL = 'http://localhost:8545'
-
 function App() {
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
@@ -32,63 +31,64 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'send' | 'receive' | 'history'>('dashboard')
   const [showMnemonic, setShowMnemonic] = useState(false)
-  const [nodeStatus, setNodeStatus] = useState({ peers: 0, version: 0 })
+  const [nodeStatus, setNodeStatus] = useState({ peers: 0, version: 0, wallets: 0 })
 
-  // Generate random mnemonic words
-  const words = ['abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract',
-    'absurd', 'abuse', 'access', 'accident', 'account', 'accuse', 'achieve', 'acid']
+  // Create wallet using real API
+  const createWallet = async () => {
+    try {
+      const result = await API.createWallet()
+      setWallet({
+        address: result.address,
+        balance: 0,
+        mnemonic: result.mnemonic,
+        connected: true
+      })
+      setShowMnemonic(true)
 
-  const generateMnemonic = () => {
-    const mnemonic: string[] = []
-    for (let i = 0; i < 12; i++) {
-      mnemonic.push(words[Math.floor(Math.random() * words.length)])
+      // Fetch initial balance
+      setTimeout(async () => {
+        try {
+          const balanceData = await API.getBalance(result.address)
+          setWallet(prev => ({ ...prev, balance: balanceData.balance }))
+        } catch {
+          // Wallet not in state yet, that's ok
+        }
+      }, 500)
+    } catch (error) {
+      console.error('Failed to create wallet:', error)
+      alert('Failed to create wallet. Is the API server running?')
     }
-    return mnemonic.join(' ')
   }
 
-  const generateAddress = () => {
-    const chars = '0123456789abcdef'
-    let addr = ''
-    for (let i = 0; i < 64; i++) {
-      addr += chars[Math.floor(Math.random() * 16)]
-    }
-    return addr
-  }
-
-  const createWallet = () => {
-    const mnemonic = generateMnemonic()
-    const address = generateAddress()
-    setWallet({
-      address,
-      balance: 1000000,
-      mnemonic,
-      connected: true
-    })
-    setShowMnemonic(true)
-  }
-
+  // Send transaction using real API
   const sendTransaction = async () => {
-    if (!sendTo || !sendAmount || parseFloat(sendAmount) <= 0) return
+    if (!sendTo || !sendAmount || parseFloat(sendAmount) <= 0 || !wallet.address) return
 
     setLoading(true)
-    // Simulate transaction
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      const amount = parseFloat(sendAmount)
+      await API.sendTransaction(wallet.address, sendTo, amount)
 
-    const amount = parseFloat(sendAmount)
-    setWallet(prev => ({ ...prev, balance: prev.balance - amount }))
-    setTransactions(prev => [{
-      id: generateAddress().slice(0, 16),
-      from: wallet.address!,
-      to: sendTo,
-      amount,
-      timestamp: new Date(),
-      incoming: false
-    }, ...prev])
+      // Update local state
+      setWallet(prev => ({ ...prev, balance: prev.balance - amount }))
+      setTransactions(prev => [{
+        id: Date.now().toString(16),
+        from: wallet.address!,
+        to: sendTo,
+        amount,
+        timestamp: new Date(),
+        incoming: false
+      }, ...prev])
 
-    setSendTo('')
-    setSendAmount('')
-    setLoading(false)
-    setActiveTab('history')
+      setSendTo('')
+      setSendAmount('')
+      setActiveTab('history')
+    } catch (error) {
+      console.error('Transaction failed:', error)
+      alert('Transaction failed. Check console for details.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const copyToClipboard = (text: string) => {
@@ -99,23 +99,34 @@ function App() {
     return `${addr.slice(0, 8)}...${addr.slice(-8)}`
   }
 
-  // Check API status
+  // Check API status and update balance
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const res = await fetch(`${API_URL}/status`)
-        if (res.ok) {
-          const data = await res.json()
-          setNodeStatus({ peers: data.peers || 0, version: data.version || 1 })
+        const data = await API.getStatus()
+        setNodeStatus({
+          peers: 0,
+          version: parseFloat(data.version) || 1,
+          wallets: data.wallets
+        })
+
+        // Update balance if wallet is connected
+        if (wallet.address) {
+          try {
+            const balanceData = await API.getBalance(wallet.address)
+            setWallet(prev => ({ ...prev, balance: balanceData.balance }))
+          } catch {
+            // Wallet might not exist in state
+          }
         }
       } catch {
-        // API not available - using demo mode
+        // API not available
       }
     }
     checkStatus()
     const interval = setInterval(checkStatus, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [wallet.address])
 
   if (!wallet.connected) {
     return (
