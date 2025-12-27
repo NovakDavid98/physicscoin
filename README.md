@@ -332,12 +332,9 @@ npm run dev
 
 **Screenshot:**
 
-The web wallet provides an intuitive interface for managing your PhysicsCoin with:
-- Welcome screen with "Create New Wallet" button
-- Mnemonic backup modal (write down your 12 words!)
-- Balance dashboard with send/receive/history tabs
-- Zero-fee transactions
-- Instant updates
+![PhysicsCoin Web Wallet](screenshots/Screenshot_20251227_170658.png)
+
+*Premium dark mode wallet with welcome screen, mnemonic backup modal, and balance dashboard*
 
 ---
 
