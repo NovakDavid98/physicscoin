@@ -29,6 +29,54 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 
 ---
 
+## 📊 Performance Visualizations
+
+### Summary
+
+![Performance Summary](datagraphics/summary_infographic.png)
+
+### Storage: 2 Billion to 1 Compression
+
+![Storage Comparison](datagraphics/storage_comparison.png)
+
+### 216K+ Transactions Per Second
+
+![Throughput Comparison](datagraphics/throughput_comparison.png)
+
+### Perfect Energy Conservation
+
+![Conservation Error](datagraphics/conservation_error.png)
+
+### Streaming Payments in Real-Time
+
+![Streaming Payment](datagraphics/streaming_payment.png)
+
+### Horizontal Scaling with Sharding
+
+![Sharding Scaling](datagraphics/sharding_scaling.png)
+
+<details>
+<summary>📈 More Visualizations</summary>
+
+#### State Size Scaling
+![State Scaling](datagraphics/state_scaling.png)
+
+#### Transaction Latency Distribution
+![Latency Distribution](datagraphics/latency_distribution.png)
+
+#### Delta Sync Bandwidth Savings
+![Delta Sync](datagraphics/delta_sync.png)
+
+#### Key Generation Speed
+![Keygen Speed](datagraphics/keygen_speed.png)
+
+#### Storage Efficiency
+![Bytes Per Wallet](datagraphics/bytes_per_wallet.png)
+
+</details>
+
+---
+
 ## ⚡ Quick Start
 
 ```bash

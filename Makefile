@@ -35,7 +35,8 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/utils/serialize.c \
            $(SRC_DIR)/utils/delta.c \
            $(SRC_DIR)/network/gossip.c \
-           $(SRC_DIR)/network/sharding.c
+           $(SRC_DIR)/network/sharding.c \
+           $(SRC_DIR)/network/sockets.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 LIB_OBJS = $(LIB_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
