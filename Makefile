@@ -1,8 +1,8 @@
 # PhysicsCoin Makefile v2.0
 
 CC = gcc
-CFLAGS = -O3 -Wall -Wextra -march=native -I./include
-LDFLAGS = -lm -lsecp256k1
+CFLAGS = -O3 -Wall -Wextra -march=native -fopenmp -I./include
+LDFLAGS = -lm -lsodium -fopenmp
 
 SRC_DIR = src
 BUILD_DIR = build
