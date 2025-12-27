@@ -25,9 +25,12 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 |---------|-------------|
 | **116K verify/sec** | OpenMP parallelism beats Solana |
 | **Ed25519 Crypto** | Production-grade libsodium signatures |
-| **P2P Consensus** | 3-node gossip sync demo |
+| **P2P Network** | Full node daemon with TCP peer-to-peer |
 | **Crash Recovery** | Write-Ahead Log (WAL) |
 | **JSON API** | RESTful server at :8545 |
+| **HD Wallet** | 12/24 word BIP39-style mnemonic backup |
+| **React Web Wallet** | Premium dark mode UI |
+| **Security Hardening** | Rate limiting, ban system, violation tracking |
 | **Streaming Payments** | Pay-per-second continuous flows |
 | **Balance Proofs** | Cryptographic proof at any state |
 | **Delta Sync** | Only 100 bytes to sync |
@@ -87,6 +90,18 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 ```bash
 # Build
 make
+
+# Create HD Wallet with 12-word mnemonic
+./physicscoin wallet create
+
+# Start P2P Node
+./physicscoin node start --port 9333
+
+# Start API Server
+./physicscoin api serve
+
+# Web Wallet (open http://localhost:5173)
+cd web && npm install && npm run dev
 
 # Run demo (includes proof generation)
 ./physicscoin demo
@@ -191,16 +206,20 @@ physicscoin/
 │   ├── core/           # state, proofs, streams, batch, replay, timetravel
 │   ├── crypto/         # Ed25519 (libsodium), SHA-256
 │   ├── consensus/      # vector_clock, ordering, checkpoint, validator
-│   ├── network/        # gossip, sharding, sockets
+│   ├── network/        # gossip, sharding, sockets, node daemon
+│   ├── wallet/         # HD wallet with mnemonic backup
 │   ├── persistence/    # Write-Ahead Log (WAL)
-│   ├── api/            # JSON server
-│   └── cli/            # CLI with 15+ commands
+│   ├── api/            # JSON REST API server
+│   └── cli/            # CLI with 20+ commands
+├── web/                # React TypeScript web wallet
+│   ├── src/            # Premium dark mode UI components
+│   └── dist/           # Production build
 ├── tests/              # 10 unit tests, demos
 ├── benchmarks/         # Performance benchmarks
-└── docs/               # Whitepaper, API docs
+└── docs/               # Whitepaper, API docs, deployment
 ```
 
-**22 source files total**
+**25 source files + React frontend**
 
 ---
 
@@ -234,6 +253,91 @@ All 12 tests pass:
 
 - [Technical Whitepaper](docs/whitepaper.md)
 - [Strategic Development Report](docs/strategic_report.md)
+- [API Documentation](docs/API.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+
+---
+
+## 🌐 P2P Network
+
+Run a full node and connect to the network:
+
+```bash
+# Start node on default port 9333
+./physicscoin node start
+
+# Start node on custom port
+./physicscoin node start --port 9334
+
+# Connect to seed node
+./physicscoin node start --port 9335 --connect 127.0.0.1:9333
+```
+
+**Features:**
+- TCP peer-to-peer networking
+- State synchronization across nodes
+- Message protocol: VERSION, TX, STATE, PING/PONG
+- Up to 32 concurrent peers
+- Rate limiting: 100 msg/min, 50 tx/min per peer
+- Ban system: 1 hour temporary bans, permanent for violations
+- Violation tracking: 5 strikes = ban
+- Auto-unban after expiry
+
+---
+
+## 💼 HD Wallet
+
+Create and manage wallets with BIP39-style mnemonic backup:
+
+```bash
+# Create new wallet with 12-word mnemonic
+./physicscoin wallet create
+
+# Recover wallet from mnemonic
+./physicscoin wallet recover "word1 word2 word3 ... word12"
+
+# Generate new address
+./physicscoin wallet address
+```
+
+**Your 12-word recovery phrase:**
+```
+believe any able armed border ability begin bacon also book bleak artist
+```
+
+⚠️ **Write this down and store safely!** This is the ONLY way to recover your wallet.
+
+---
+
+## 🎨 Web Wallet
+
+Modern React web interface with premium dark mode design:
+
+```bash
+cd web
+npm install
+npm run dev
+# → http://localhost:5173
+```
+
+**Features:**
+- 📊 Dashboard with balance display
+- 📤 Send transactions
+- 📥 Receive with QR code & address copy
+- 📜 Transaction history
+- 🔑 12-word mnemonic backup modal
+- ⚡ Real-time stats (116K TPS, peers, state version)
+- 🎨 Premium dark mode design
+- 📱 Mobile responsive
+
+**Screenshot:**
+
+The web wallet provides an intuitive interface for managing your PhysicsCoin with:
+- Welcome screen with "Create New Wallet" button
+- Mnemonic backup modal (write down your 12 words!)
+- Balance dashboard with send/receive/history tabs
+- Zero-fee transactions
+- Instant updates
 
 ---
 
@@ -241,13 +345,17 @@ All 12 tests pass:
 
 Production-ready features:
 - ✅ Ed25519 signatures (libsodium)
-- ✅ P2P consensus demo (3 nodes)
+- ✅ P2P node daemon with TCP networking
+- ✅ Security hardening (rate limiting, ban system)
+- ✅ HD wallet with 12/24-word mnemonic
+- ✅ React web wallet UI
 - ✅ Crash recovery (WAL)
 - ✅ JSON API server
 
 Still in development:
-- GPU acceleration (ROCm)
-- Public testnet
+- GPU acceleration (ROCm/CUDA)
+- Public testnet deployment
+- Mobile wallet apps
 
 ---
 
