@@ -29,9 +29,17 @@ function App() {
   const [sendTo, setSendTo] = useState('')
   const [sendAmount, setSendAmount] = useState('')
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'send' | 'receive' | 'history'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'send' | 'receive' | 'streams' | 'proofs' | 'history'>('dashboard')
   const [showMnemonic, setShowMnemonic] = useState(false)
   const [nodeStatus, setNodeStatus] = useState({ peers: 0, version: 0, wallets: 0 })
+
+  // Streaming state
+  const [streams, setStreams] = useState<Array<{ id: string, to: string, rate: number, started: number, accumulated: number }>>([])
+  const [streamTo, setStreamTo] = useState('')
+  const [streamRate, setStreamRate] = useState('')
+
+  // Proof state
+  const [proof, setProof] = useState<{ address: string, balance: number, hash: string, timestamp: number } | null>(null)
 
   // Create wallet using real API
   const createWallet = async () => {
@@ -233,7 +241,7 @@ function App() {
 
       {/* Navigation */}
       <nav className="nav">
-        {(['dashboard', 'send', 'receive', 'history'] as const).map(tab => (
+        {(['dashboard', 'send', 'receive', 'streams', 'proofs', 'history'] as const).map(tab => (
           <button
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`}
@@ -242,6 +250,8 @@ function App() {
             {tab === 'dashboard' && '📊'}
             {tab === 'send' && '📤'}
             {tab === 'receive' && '📥'}
+            {tab === 'streams' && '💧'}
+            {tab === 'proofs' && '🔐'}
             {tab === 'history' && '📜'}
             <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
           </button>
@@ -399,6 +409,153 @@ function App() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'streams' && (
+          <div className="streams">
+            <div className="card">
+              <h2>💧 Streaming Payments</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                Pay continuously over time - perfect for subscriptions, API usage, IoT payments
+              </p>
+
+              <div className="input-group">
+                <label>Recipient Address</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Enter recipient address..."
+                  value={streamTo}
+                  onChange={e => setStreamTo(e.target.value)}
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Rate (PCS/second)</label>
+                <input
+                  type="number"
+                  className="input"
+                  placeholder="0.001"
+                  value={streamRate}
+                  onChange={e => setStreamRate(e.target.value)}
+                />
+              </div>
+
+              <button
+                className="btn btn-primary btn-full"
+                onClick={async () => {
+                  if (!wallet.address || !streamTo || !streamRate) return
+                  try {
+                    const result = await API.openStream(wallet.address, streamTo, parseFloat(streamRate))
+                    setStreams(prev => [...prev, {
+                      id: result.stream_id,
+                      to: streamTo,
+                      rate: parseFloat(streamRate),
+                      started: Date.now(),
+                      accumulated: 0
+                    }])
+                    setStreamTo('')
+                    setStreamRate('')
+                  } catch (error) {
+                    console.error('Failed to open stream:', error)
+                  }
+                }}
+                disabled={!streamTo || !streamRate}
+              >
+                💧 Open Stream
+              </button>
+
+              {streams.length > 0 && (
+                <div style={{ marginTop: '2rem' }}>
+                  <h3>Active Streams</h3>
+                  <div className="tx-list">
+                    {streams.map(stream => {
+                      const elapsed = (Date.now() - stream.started) / 1000
+                      const accumulated = stream.rate * elapsed
+                      return (
+                        <div key={stream.id} className="tx-item">
+                          <div className="tx-info">
+                            <div className="tx-type">💧 Streaming to {formatAddress(stream.to)}</div>
+                            <div className="tx-address">{stream.rate} PCS/sec</div>
+                            <div className="tx-time">Accumulated: {accumulated.toFixed(2)} PCS</div>
+                          </div>
+                          <button className="btn btn-secondary btn-sm">Close</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'proofs' && (
+          <div className="proofs">
+            <div className="card">
+              <h2>🔐 Balance Proofs</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                Generate cryptographic proof of your balance at current state
+              </p>
+
+              <button
+                className="btn btn-primary btn-full"
+                onClick={async () => {
+                  if (!wallet.address) return
+                  try {
+                    const result = await API.generateProof(wallet.address)
+                    setProof({
+                      address: result.address,
+                      balance: result.balance,
+                      hash: result.state_hash,
+                      timestamp: result.timestamp
+                    })
+                  } catch (error) {
+                    console.error('Failed to generate proof:', error)
+                  }
+                }}
+              >
+                🔐 Generate Proof
+              </button>
+
+              {proof && (
+                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                  <h3>Balance Proof</h3>
+                  <div style={{ marginTop: '1rem' }}>
+                    <div style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Address:</div>
+                    <div className="address">{proof.address}</div>
+                  </div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <div style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Balance:</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--primary)' }}>{proof.balance.toFixed(8)} PCS</div>
+                  </div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <div style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>State Hash:</div>
+                    <div className="address">{proof.hash}</div>
+                  </div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <div style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Timestamp:</div>
+                    <div>{new Date(proof.timestamp * 1000).toLocaleString()}</div>
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ marginTop: '1rem' }}
+                    onClick={() => {
+                      const proofData = JSON.stringify(proof, null, 2)
+                      const blob = new Blob([proofData], { type: 'application/json' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `proof_${proof.timestamp}.json`
+                      a.click()
+                    }}
+                  >
+                    📥 Download Proof
+                  </button>
                 </div>
               )}
             </div>
