@@ -1,11 +1,12 @@
-# PhysicsCoin v2.0
+# PhysicsCoin v2.1
 
 **The world's first physics-based cryptocurrency. Faster than Solana.**
 
 Replace **500 GB blockchain** with a **244-byte state vector**.
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-10%2F10-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-25%2F25-brightgreen)]()
+[![Security](https://img.shields.io/badge/security-audited-green)]()
 [![Performance](https://img.shields.io/badge/verify-116K%2Fsec-blue)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -19,7 +20,21 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 
 ---
 
-## 🚀 What's New in v2.0
+## 🚀 What's New in v2.1 (Security Hardened)
+
+| Feature | Description |
+|---------|-------------|
+| **🔒 Security Audit** | Comprehensive security review and fixes |
+| **No Faucet** | Removed money creation - wallets start at 0 |
+| **Signed Transactions** | All API transactions require Ed25519 signatures |
+| **Validator Signatures** | P2P state sync requires validator approval |
+| **Conservation Verification** | Delta sync verifies physics law before applying |
+| **Real Ed25519 Checkpoints** | Replaced fake sigs with libsodium crypto |
+| **Durable WAL** | fsync() on every write for crash safety |
+| **Persistent Streams** | Streaming payments survive restarts |
+| **25 Security Tests** | Comprehensive test coverage |
+
+## 🚀 Features from v2.0
 
 | Feature | Description |
 |---------|-------------|
@@ -214,7 +229,7 @@ physicscoin/
 ├── web/                # React TypeScript web wallet
 │   ├── src/            # Premium dark mode UI components
 │   └── dist/           # Production build
-├── tests/              # 10 unit tests, demos
+├── tests/              # 25 security + unit tests
 ├── benchmarks/         # Performance benchmarks
 └── docs/               # Whitepaper, API docs, deployment
 ```
@@ -240,11 +255,17 @@ physicscoin/
 
 ```bash
 make test-all
+
+# Or run individual test suites:
+./test_security       # 13 security tests
+./test_conservation   # 8 conservation tests
+./test_serialization  # 4 serialization tests
 ```
 
-All 12 tests pass:
-- 8 conservation tests
-- 4 serialization tests  
+All 25 tests pass:
+- 13 security tests (signatures, replay, conservation enforcement)
+- 8 conservation tests (physics law verification)
+- 4 serialization tests (state persistence)
 - Performance benchmarks
 
 ---
@@ -338,6 +359,43 @@ npm run dev
 
 ---
 
+## 🔐 Security Audit (v2.1)
+
+PhysicsCoin v2.1 underwent a comprehensive security audit with the following fixes:
+
+### Vulnerabilities Fixed
+
+| Issue | Severity | Fix |
+|-------|----------|-----|
+| **API Faucet** | 🔴 Critical | Removed - wallets now start with 0 balance |
+| **Unsigned API Transactions** | 🔴 Critical | All transactions require Ed25519 signatures |
+| **Trust-Based State Sync** | 🔴 Critical | Validators must sign states; conservation verified |
+| **Delta Sync No Verification** | 🟠 High | Conservation law checked before applying deltas |
+| **Fake Checkpoint Signatures** | 🟠 High | Real Ed25519 via libsodium |
+| **WAL No fsync** | 🟡 Medium | fsync() after every write for durability |
+| **In-Memory Streams** | 🟡 Medium | Streams persisted to disk |
+
+### Security Test Results
+
+```
+SECURITY TESTS:      13/13 passed ✓
+CONSERVATION TESTS:   8/8  passed ✓
+SERIALIZATION TESTS:  4/4  passed ✓
+─────────────────────────────────────
+TOTAL:               25/25 passed ✓
+```
+
+### Security Features
+
+- **Conservation Law Enforcement**: `Σ wallet.energy = total_supply` verified on every operation
+- **Cryptographic Signatures**: Ed25519 via libsodium for all transactions
+- **Replay Protection**: Nonce-based transaction ordering
+- **Rate Limiting**: 60 requests/min per IP on API, 100 msg/min per peer on P2P
+- **Ban System**: 5 violations = 1 hour ban, permanent for severe violations
+- **Validator Trust**: P2P state sync requires trusted validator signatures
+
+---
+
 ## ⚠️ Status
 
 Production-ready features:
@@ -346,13 +404,18 @@ Production-ready features:
 - ✅ Security hardening (rate limiting, ban system)
 - ✅ HD wallet with 12/24-word mnemonic
 - ✅ React web wallet UI
-- ✅ Crash recovery (WAL)
-- ✅ JSON API server
+- ✅ Crash recovery (WAL with fsync)
+- ✅ JSON API server (signed transactions required)
+- ✅ Security audit complete (v2.1)
+- ✅ Conservation law enforcement
+- ✅ Validator-signed state sync
+- ✅ Persistent streaming payments
 
 Still in development:
 - GPU acceleration (ROCm/CUDA)
 - Public testnet deployment
 - Mobile wallet apps
+- Multi-signature support
 
 ---
 

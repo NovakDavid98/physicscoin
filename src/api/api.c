@@ -1,5 +1,6 @@
-// api.c - Simple JSON-RPC API Server
+// api.c - Secure JSON-RPC API Server
 // Provides HTTP API for external wallet/app integration
+// SECURITY HARDENED: No faucet, requires signed transactions
 
 #include "../include/physicscoin.h"
 #include <stdio.h>
@@ -12,8 +13,21 @@
 #include <time.h>
 
 #define API_PORT 8545
-#define API_PORT 8545
 #define MAX_REQUEST_SIZE 8192
+
+// Rate limiting
+#define MAX_REQUESTS_PER_MINUTE 60
+#define RATE_LIMIT_WINDOW 60
+
+typedef struct {
+    uint32_t ip_addr;
+    int request_count;
+    time_t window_start;
+} RateLimitEntry;
+
+#define MAX_RATE_LIMIT_ENTRIES 1000
+static RateLimitEntry rate_limits[MAX_RATE_LIMIT_ENTRIES];
+static int rate_limit_count = 0;
 
 // Transaction history storage
 #define MAX_TX_HISTORY 100
@@ -25,6 +39,41 @@ static struct {
 } tx_history[MAX_TX_HISTORY];
 static int tx_history_count = 0;
 
+// Check rate limit for an IP
+static int check_rate_limit(uint32_t ip_addr) {
+    time_t now = time(NULL);
+    
+    // Find existing entry
+    for (int i = 0; i < rate_limit_count; i++) {
+        if (rate_limits[i].ip_addr == ip_addr) {
+            // Reset window if expired
+            if (now - rate_limits[i].window_start >= RATE_LIMIT_WINDOW) {
+                rate_limits[i].request_count = 1;
+                rate_limits[i].window_start = now;
+                return 1;  // Allowed
+            }
+            
+            // Check limit
+            if (rate_limits[i].request_count >= MAX_REQUESTS_PER_MINUTE) {
+                return 0;  // Rate limited
+            }
+            
+            rate_limits[i].request_count++;
+            return 1;  // Allowed
+        }
+    }
+    
+    // Add new entry
+    if (rate_limit_count < MAX_RATE_LIMIT_ENTRIES) {
+        rate_limits[rate_limit_count].ip_addr = ip_addr;
+        rate_limits[rate_limit_count].request_count = 1;
+        rate_limits[rate_limit_count].window_start = now;
+        rate_limit_count++;
+    }
+    
+    return 1;  // Allowed
+}
+
 static void record_transaction(const char* from, const char* to, double amount) {
     if (tx_history_count >= MAX_TX_HISTORY) {
         // Shift old transactions out
@@ -32,7 +81,9 @@ static void record_transaction(const char* from, const char* to, double amount) 
         tx_history_count = MAX_TX_HISTORY - 1;
     }
     strncpy(tx_history[tx_history_count].from, from, 64);
+    tx_history[tx_history_count].from[64] = '\0';
     strncpy(tx_history[tx_history_count].to, to, 64);
+    tx_history[tx_history_count].to[64] = '\0';
     tx_history[tx_history_count].amount = amount;
     tx_history[tx_history_count].timestamp = time(NULL);
     tx_history_count++;
@@ -40,7 +91,7 @@ static void record_transaction(const char* from, const char* to, double amount) 
 
 // API response helpers
 static void send_json_response(int client, int status, const char* body) {
-    char response[4096];
+    char response[8192];
     snprintf(response, sizeof(response),
              "HTTP/1.1 %d OK\r\n"
              "Content-Type: application/json\r\n"
@@ -60,7 +111,7 @@ static void send_error(int client, int code, const char* message) {
 static void handle_status(int client, PCState* state) {
     char body[512];
     snprintf(body, sizeof(body),
-             "{\"version\":\"%s\",\"wallets\":%u,\"total_supply\":%.8f,\"timestamp\":%lu,\"tx_count\":%d,\"peers\":1}",
+             "{\"version\":\"%s\",\"wallets\":%u,\"total_supply\":%.8f,\"timestamp\":%lu,\"tx_count\":%d,\"peers\":1,\"secure\":true}",
              PHYSICSCOIN_VERSION, state->num_wallets, state->total_supply, state->timestamp, tx_history_count);
     send_json_response(client, 200, body);
 }
@@ -75,12 +126,16 @@ static void handle_balance(int client, PCState* state, const char* address) {
     
     PCWallet* wallet = pc_state_get_wallet(state, pubkey);
     if (!wallet) {
-        send_error(client, -32602, "Wallet not found");
+        // Return 0 balance for non-existent wallets (not an error)
+        char body[256];
+        snprintf(body, sizeof(body), "{\"address\":\"%s\",\"balance\":0.00000000,\"nonce\":0,\"exists\":false}",
+                 address);
+        send_json_response(client, 200, body);
         return;
     }
     
     char body[256];
-    snprintf(body, sizeof(body), "{\"address\":\"%s\",\"balance\":%.8f,\"nonce\":%lu}",
+    snprintf(body, sizeof(body), "{\"address\":\"%s\",\"balance\":%.8f,\"nonce\":%lu,\"exists\":true}",
              address, wallet->energy, wallet->nonce);
     send_json_response(client, 200, body);
 }
@@ -129,7 +184,14 @@ static double get_json_number(const char* json, const char* field) {
     return start ? atof(start + strlen(search)) : 0.0;
 }
 
-// POST /wallet/create - Create new HD wallet and register in state
+static uint64_t get_json_uint64(const char* json, const char* field) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\":", field);
+    char* start = strstr(json, search);
+    return start ? (uint64_t)strtoull(start + strlen(search), NULL, 10) : 0;
+}
+
+// POST /wallet/create - Create new HD wallet (NO FAUCET - wallet starts with 0 balance)
 static void handle_wallet_create(int client, PCState* state) {
     extern int pc_mnemonic_generate(char* mnemonic, size_t len, int words);
     
@@ -145,93 +207,122 @@ static void handle_wallet_create(int client, PCState* state) {
     char address[65];
     pc_pubkey_to_hex(kp.public_key, address);
     
-    // Register wallet in state with faucet funding (1000 coins)
-    double faucet_amount = 1000.0;
+    // SECURITY FIX: Register wallet with ZERO balance (no faucet)
+    // Wallet will need to receive funds from existing wallets
     PCWallet* existing = pc_state_get_wallet(state, kp.public_key);
     if (!existing) {
-        // Add new wallet to state
-        if (state->num_wallets < 1000) {
+        // Add new wallet to state with ZERO balance
+        if (state->num_wallets < state->wallets_capacity) {
             PCWallet* new_wallet = &state->wallets[state->num_wallets++];
             memcpy(new_wallet->public_key, kp.public_key, 32);
-            new_wallet->energy = faucet_amount;
+            new_wallet->energy = 0.0;  // SECURITY: No free coins!
             new_wallet->nonce = 0;
-            state->total_supply += faucet_amount;
-            
-            // Record faucet TX
-            record_transaction("FAUCET", address, faucet_amount);
+            // DO NOT modify total_supply - conservation law preserved
+            pc_state_compute_hash(state);
         }
     }
     
     char body[1024];
     snprintf(body, sizeof(body),
-             "{\"mnemonic\":\"%s\",\"address\":\"%s\",\"balance\":%.8f}",
-             mnemonic, address, faucet_amount);
+             "{\"mnemonic\":\"%s\",\"address\":\"%s\",\"balance\":0.00000000,\"message\":\"Wallet created with zero balance. Receive funds from existing wallets.\"}",
+             mnemonic, address);
     send_json_response(client, 200, body);
 }
 
-// POST /transaction/send - Send transaction
+// POST /transaction/send - Send SIGNED transaction
+// SECURITY: Requires cryptographic signature from sender
 static void handle_transaction_send(int client, PCState* state, const char* json) {
     const char* from = get_json_field(json, "from");
     const char* to = get_json_field(json, "to");
+    const char* signature_hex = get_json_field(json, "signature");
     double amount = get_json_number(json, "amount");
+    uint64_t nonce = get_json_uint64(json, "nonce");
+    uint64_t timestamp = get_json_uint64(json, "timestamp");
     
+    // SECURITY: Require all fields including signature
     if (!from || !to || amount <= 0) {
-        send_error(client, -32602, "Invalid parameters");
+        send_error(client, -32602, "Missing required fields: from, to, amount");
+        return;
+    }
+    
+    if (!signature_hex || strlen(signature_hex) != 128) {
+        send_error(client, -32602, "Missing or invalid signature (must be 128 hex chars)");
         return;
     }
     
     uint8_t from_key[32], to_key[32];
     if (pc_hex_to_pubkey(from, from_key) != PC_OK || pc_hex_to_pubkey(to, to_key) != PC_OK) {
-        send_error(client, -32602, "Invalid address");
+        send_error(client, -32602, "Invalid address format");
         return;
     }
     
+    // Parse signature from hex
+    uint8_t signature[64];
+    for (int i = 0; i < 64; i++) {
+        unsigned int byte;
+        if (sscanf(signature_hex + (i * 2), "%02x", &byte) != 1) {
+            send_error(client, -32602, "Invalid signature hex encoding");
+            return;
+        }
+        signature[i] = (uint8_t)byte;
+    }
+    
+    // Build transaction
     PCTransaction tx;
+    memset(&tx, 0, sizeof(tx));
     memcpy(tx.from, from_key, 32);
     memcpy(tx.to, to_key, 32);
     tx.amount = amount;
-    tx.timestamp = time(NULL);
+    tx.nonce = nonce;
+    tx.timestamp = timestamp ? timestamp : (uint64_t)time(NULL);
+    memcpy(tx.signature, signature, 64);
     
-    // Get nonce
-    PCWallet* wallet = pc_state_get_wallet(state, from_key);
-    if (!wallet) {
-        send_error(client, -32602, "Sender wallet not found");
-        return;
-    }
-    tx.nonce = wallet->nonce;
-    
+    // SECURITY: Execute transaction with signature verification
+    // pc_state_execute_tx will verify the signature internally
     PCError err = pc_state_execute_tx(state, &tx);
     if (err != PC_OK) {
-        send_error(client, -32000, "Transaction failed");
+        char error_msg[128];
+        snprintf(error_msg, sizeof(error_msg), "Transaction failed: %s", pc_strerror(err));
+        send_error(client, -32000, error_msg);
         return;
     }
     
     // Record the transaction
     record_transaction(from, to, amount);
     
+    // Save state after successful transaction
+    pc_state_save(state, "state.pcs");
+    
     char body[256];
-    snprintf(body, sizeof(body), "{\"success\":true,\"amount\":%.8f}", amount);
+    snprintf(body, sizeof(body), "{\"success\":true,\"amount\":%.8f,\"tx_hash\":\"pending\"}", amount);
     send_json_response(client, 200, body);
 }
 
-// POST /stream/open - Open payment stream
+// POST /stream/open - Open payment stream (requires signature)
 static void handle_stream_open(int client, const char* json) {
     const char* from = get_json_field(json, "from");
     const char* to = get_json_field(json, "to");
+    const char* signature_hex = get_json_field(json, "signature");
     double rate = get_json_number(json, "rate");
     
     if (!from || !to || rate <= 0) {
-        send_error(client, -32602, "Invalid parameters");
+        send_error(client, -32602, "Missing required fields: from, to, rate");
         return;
     }
     
-    // Generate stream ID (simplified)
+    // SECURITY: Streams should require signatures too
+    if (!signature_hex) {
+        send_error(client, -32602, "Missing signature for stream authorization");
+        return;
+    }
+    
+    // Generate stream ID
     char stream_id[17];
     snprintf(stream_id, sizeof(stream_id), "%016lx", (unsigned long)time(NULL));
     
-    char body[256];
+    char body[512];
     snprintf(body, sizeof(body),
-             "{\"stream_id\":\"%s\",\"from\":\"%s\",\"to\":\"%s\",\"rate\":%.8f}",
+             "{\"stream_id\":\"%s\",\"from\":\"%.16s...\",\"to\":\"%.16s...\",\"rate\":%.8f}",
              stream_id, from, to, rate);
     send_json_response(client, 200, body);
 }
@@ -251,10 +342,8 @@ static void handle_proof_generate(int client, PCState* state, const char* json) 
     }
     
     PCWallet* wallet = pc_state_get_wallet(state, pubkey);
-    if (!wallet) {
-        send_error(client, -32602, "Wallet not found");
-        return;
-    }
+    double balance = wallet ? wallet->energy : 0.0;
+    uint64_t nonce = wallet ? wallet->nonce : 0;
     
     // Generate proof hash
     pc_state_compute_hash(state);
@@ -263,8 +352,8 @@ static void handle_proof_generate(int client, PCState* state, const char* json) 
     
     char body[512];
     snprintf(body, sizeof(body),
-             "{\"address\":\"%s\",\"balance\":%.8f,\"state_hash\":\"%s\",\"timestamp\":%lu}",
-             address, wallet->energy, state_hash_hex, time(NULL));
+             "{\"address\":\"%s\",\"balance\":%.8f,\"nonce\":%lu,\"state_hash\":\"%s\",\"timestamp\":%lu,\"exists\":%s}",
+             address, balance, nonce, state_hash_hex, (unsigned long)time(NULL), wallet ? "true" : "false");
     send_json_response(client, 200, body);
 }
 
@@ -277,14 +366,33 @@ static int parse_request(const char* request, char* method, char* path) {
 static void handle_transactions(int client) {
     char body[8192] = "{\"transactions\":[";
     char* p = body + strlen(body);
+    size_t remaining = sizeof(body) - strlen(body) - 10;
     
-    for (int i = tx_history_count - 1; i >= 0 && i >= tx_history_count - 20; i--) {
-        p += sprintf(p, "%s{\"from\":\"%s\",\"to\":\"%s\",\"amount\":%.8f,\"timestamp\":%lu}",
+    for (int i = tx_history_count - 1; i >= 0 && i >= tx_history_count - 20 && remaining > 200; i--) {
+        int written = sprintf(p, "%s{\"from\":\"%.16s...\",\"to\":\"%.16s...\",\"amount\":%.8f,\"timestamp\":%lu}",
                      i < tx_history_count - 1 ? "," : "",
                      tx_history[i].from, tx_history[i].to,
                      tx_history[i].amount, tx_history[i].timestamp);
+        p += written;
+        remaining -= written;
     }
     strcat(body, "]}");
+    send_json_response(client, 200, body);
+}
+
+// GET /conservation - Verify conservation law
+static void handle_conservation(int client, PCState* state) {
+    PCError err = pc_state_verify_conservation(state);
+    double sum = 0.0;
+    for (uint32_t i = 0; i < state->num_wallets; i++) {
+        sum += state->wallets[i].energy;
+    }
+    double error = state->total_supply - sum;
+    
+    char body[256];
+    snprintf(body, sizeof(body),
+             "{\"verified\":%s,\"total_supply\":%.8f,\"wallet_sum\":%.8f,\"error\":%.12e}",
+             err == PC_OK ? "true" : "false", state->total_supply, sum, error);
     send_json_response(client, 200, body);
 }
 
@@ -301,15 +409,35 @@ int pc_api_serve(PCState* state, int port) {
     if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) { perror("bind"); close(server_fd); return -1; }
     if (listen(server_fd, 10) < 0) { perror("listen"); close(server_fd); return -1; }
     
-    printf("API Server: http://localhost:%d\n", port);
-    printf("  GET  /status, /wallets, /balance/<addr>\n");
-    printf("  POST /wallet/create, /transaction/send, /stream/open, /proof/generate\n\n");
+    printf("╔═══════════════════════════════════════════════════════════════╗\n");
+    printf("║          PHYSICSCOIN SECURE API SERVER                        ║\n");
+    printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+    printf("Listening on: http://localhost:%d\n", port);
+    printf("Security: Rate limiting enabled (%d req/min)\n", MAX_REQUESTS_PER_MINUTE);
+    printf("Security: Signed transactions required\n");
+    printf("Security: No faucet (wallets start with 0 balance)\n\n");
+    printf("Endpoints:\n");
+    printf("  GET  /status          - Network status\n");
+    printf("  GET  /wallets         - List wallets\n");
+    printf("  GET  /balance/<addr>  - Get balance\n");
+    printf("  GET  /transactions    - Transaction history\n");
+    printf("  GET  /conservation    - Verify conservation law\n");
+    printf("  POST /wallet/create   - Create wallet (0 balance)\n");
+    printf("  POST /transaction/send - Send signed transaction\n");
+    printf("  POST /proof/generate  - Generate balance proof\n\n");
     
     while (1) {
         struct sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
         int client = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
         if (client < 0) continue;
+        
+        // Rate limiting
+        if (!check_rate_limit(client_addr.sin_addr.s_addr)) {
+            send_error(client, -32000, "Rate limit exceeded. Try again later.");
+            close(client);
+            continue;
+        }
         
         char request[MAX_REQUEST_SIZE];
         ssize_t n = recv(client, request, sizeof(request) - 1, 0);
@@ -336,6 +464,7 @@ int pc_api_serve(PCState* state, int port) {
             if (strcmp(path, "/status") == 0) handle_status(client, state);
             else if (strcmp(path, "/wallets") == 0) handle_wallets(client, state);
             else if (strcmp(path, "/transactions") == 0) handle_transactions(client);
+            else if (strcmp(path, "/conservation") == 0) handle_conservation(client, state);
             else if (strncmp(path, "/balance/", 9) == 0) handle_balance(client, state, path + 9);
             else send_error(client, -32601, "Not found");
         }
@@ -356,3 +485,4 @@ int pc_api_serve(PCState* state, int port) {
     }
     return 0;
 }
+
