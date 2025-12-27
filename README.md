@@ -1,11 +1,11 @@
-# PhysicsCoin v2.4
+# PhysicsCoin v2.5
 
 **The world's first physics-based cryptocurrency. Faster than Solana.**
 
 Replace **500 GB blockchain** with a **244-byte state vector**.
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-39%2F39-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-47%2F47-brightgreen)]()
 [![Security](https://img.shields.io/badge/security-hardened-green)]()
 [![Performance](https://img.shields.io/badge/verify-116K%2Fsec-blue)]()
 [![SDK](https://img.shields.io/badge/SDK-JS%20%7C%20Python-orange)]()
@@ -19,6 +19,28 @@ Replace **500 GB blockchain** with a **244-byte state vector**.
 PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is modeled as a **dynamical system** governed by differential equations rather than blockchain logs.
 
 **Read how:** [$\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$](MATHEMATICAL_FOUNDATION.md) became a cryptocurrency.
+
+---
+
+## 🚀 What's New in v2.5 (Proof-of-Conservation Consensus)
+
+| Feature | Description |
+|---------|-------------|
+| **⚛️ POC Consensus** | Novel PBFT consensus using conservation law as source of truth |
+| **🔒 Byzantine Fault Tolerance** | 2/3 quorum voting with cryptographic signatures |
+| **🌐 Cross-Shard Locks** | Prevent double-spending across shards with global locks |
+| **📐 Physics-Based Validation** | Every validator independently verifies conservation law |
+| **🔧 Build System Fixes** | Fixed Makefile duplicate sources and stream demo |
+| **✅ New Tests** | 8 new POC consensus tests (47 total tests) |
+
+**The Key Innovation:** Double-spending is now **mathematically impossible**, not just computationally expensive. Any state where `Σ balances ≠ total_supply` is rejected by ALL honest validators.
+
+```c
+// The core validation that makes PhysicsCoin unique
+if (fabs(sum_of_balances - total_supply) > 1e-12) {
+    return PC_ERR_CONSERVATION_VIOLATED;  // Physics blocks invalid states
+}
+```
 
 ---
 

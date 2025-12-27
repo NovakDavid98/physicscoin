@@ -8,6 +8,8 @@ build/
 # State files
 state.pcs
 wallet.pcw
+streams.dat
+poc_consensus.dat
 
 # IDE
 .vscode/
@@ -23,4 +25,12 @@ sdk/python/venv/
 sdk/python/__pycache__/
 sdk/python/*.egg-info/
 *.log
-test_*
+
+# Test binaries (but not test source files)
+test_conservation
+test_serialization
+test_performance
+test_exploration
+test_features
+test_security
+test_poc_consensus

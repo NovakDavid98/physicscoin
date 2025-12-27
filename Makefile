@@ -31,6 +31,7 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/consensus/checkpoint.c \
        $(SRC_DIR)/consensus/validator.c \
        $(SRC_DIR)/consensus/poa_consensus.c \
+       $(SRC_DIR)/consensus/poc_consensus.c \
        $(SRC_DIR)/persistence/wal.c \
        $(SRC_DIR)/api/api.c \
        $(SRC_DIR)/api/explorer_api.c \
@@ -59,6 +60,7 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/consensus/checkpoint.c \
            $(SRC_DIR)/consensus/validator.c \
            $(SRC_DIR)/consensus/poa_consensus.c \
+           $(SRC_DIR)/consensus/poc_consensus.c \
            $(SRC_DIR)/persistence/wal.c \
            $(SRC_DIR)/api/api.c \
            $(SRC_DIR)/api/explorer_api.c \
@@ -107,7 +109,10 @@ test_performance: $(LIB_OBJS) tests/test_performance.c
 test_exploration: $(LIB_OBJS) tests/test_exploration.c
 	$(CC) $(CFLAGS) -o $@ tests/test_exploration.c $(LIB_OBJS) $(LDFLAGS)
 
-test-all: test_conservation test_serialization test_performance
+test_poc_consensus: $(LIB_OBJS) tests/test_poc_consensus.c
+	$(CC) $(CFLAGS) -o $@ tests/test_poc_consensus.c $(LIB_OBJS) $(LDFLAGS)
+
+test-all: test_conservation test_serialization test_performance test_poc_consensus
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════════════════╗"
 	@echo "║              RUNNING ALL PHYSICSCOIN TESTS                    ║"
@@ -116,6 +121,7 @@ test-all: test_conservation test_serialization test_performance
 	./test_conservation
 	./test_serialization
 	./test_performance
+	./test_poc_consensus
 
 test: test-all
 
