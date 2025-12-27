@@ -1,4 +1,4 @@
-# PhysicsCoin v2.1
+# PhysicsCoin v2.2
 
 **The world's first physics-based cryptocurrency. Faster than Solana.**
 
@@ -8,6 +8,7 @@ Replace **500 GB blockchain** with a **244-byte state vector**.
 [![Tests](https://img.shields.io/badge/tests-25%2F25-brightgreen)]()
 [![Security](https://img.shields.io/badge/security-audited-green)]()
 [![Performance](https://img.shields.io/badge/verify-116K%2Fsec-blue)]()
+[![SDK](https://img.shields.io/badge/SDK-JS%20%7C%20Python-orange)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -19,6 +20,17 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 **Read how:** [$\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$](MATHEMATICAL_FOUNDATION.md) became a cryptocurrency.
 
 ---
+
+## 🚀 What's New in v2.2 (Ecosystem Expansion)
+
+| Feature | Description |
+|---------|-------------|
+| **⚡ PoA Consensus** | Multi-validator Proof-of-Authority with 2/3 quorum |
+| **💳 Subscriptions** | Monthly/yearly recurring payment system |
+| **🔍 Block Explorer API** | 9 new endpoints for blockchain analytics |
+| **📦 JavaScript SDK** | Official TypeScript SDK with full typing |
+| **🐍 Python SDK** | Complete Python client with type hints |
+| **🌐 Developer Ecosystem** | SDKs, APIs, and integration tools |
 
 ## 🚀 What's New in v2.1 (Security Hardened)
 
@@ -49,6 +61,44 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 | **Streaming Payments** | Pay-per-second continuous flows |
 | **Balance Proofs** | Cryptographic proof at any state |
 | **Delta Sync** | Only 100 bytes to sync |
+
+---
+
+## 📦 SDKs & Integration
+
+PhysicsCoin provides official SDKs for easy integration:
+
+### JavaScript/TypeScript SDK
+
+```bash
+npm install @physicscoin/sdk
+```
+
+```typescript
+import { PhysicsCoinClient, PhysicsCoinCrypto } from '@physicscoin/sdk';
+
+const client = new PhysicsCoinClient('http://localhost:8545');
+const stats = await client.getNetworkStats();
+console.log(`Supply: ${stats.total_supply}`);
+```
+
+[**Full Documentation →**](sdk/javascript/README.md)
+
+### Python SDK
+
+```bash
+pip install physicscoin-sdk
+```
+
+```python
+from physicscoin_sdk import PhysicsCoinClient, PhysicsCoinCrypto
+
+client = PhysicsCoinClient('http://localhost:8545')
+stats = client.get_network_stats()
+print(f"Supply: {stats.total_supply}")
+```
+
+[**Full Documentation →**](sdk/python/README.md)
 
 ---
 
@@ -401,6 +451,7 @@ TOTAL:               25/25 passed ✓
 Production-ready features:
 - ✅ Ed25519 signatures (libsodium)
 - ✅ P2P node daemon with TCP networking
+- ✅ Proof-of-Authority consensus (multi-validator)
 - ✅ Security hardening (rate limiting, ban system)
 - ✅ HD wallet with 12/24-word mnemonic
 - ✅ React web wallet UI
@@ -410,12 +461,18 @@ Production-ready features:
 - ✅ Conservation law enforcement
 - ✅ Validator-signed state sync
 - ✅ Persistent streaming payments
+- ✅ Subscription management system
+- ✅ Block explorer API (9 endpoints)
+- ✅ JavaScript/TypeScript SDK
+- ✅ Python SDK
 
 Still in development:
 - GPU acceleration (ROCm/CUDA)
 - Public testnet deployment
 - Mobile wallet apps
 - Multi-signature support
+- Smart contract system
+- Atomic swaps
 
 ---
 
