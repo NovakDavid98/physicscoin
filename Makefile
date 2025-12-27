@@ -1,4 +1,4 @@
-# PhysicsCoin Makefile
+# PhysicsCoin Makefile v2.0
 
 CC = gcc
 CFLAGS = -O3 -Wall -Wextra -march=native -I./include
@@ -8,23 +8,31 @@ SRC_DIR = src
 BUILD_DIR = build
 BIN = physicscoin
 
-# Source files
+# Source files (including new features)
 SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/core/state.c \
+       $(SRC_DIR)/core/proofs.c \
+       $(SRC_DIR)/core/streams.c \
+       $(SRC_DIR)/core/batch.c \
        $(SRC_DIR)/crypto/crypto.c \
        $(SRC_DIR)/crypto/sha256.c \
-       $(SRC_DIR)/utils/serialize.c
+       $(SRC_DIR)/utils/serialize.c \
+       $(SRC_DIR)/utils/delta.c
 
 # Library sources (no main)
 LIB_SRCS = $(SRC_DIR)/core/state.c \
+           $(SRC_DIR)/core/proofs.c \
+           $(SRC_DIR)/core/streams.c \
+           $(SRC_DIR)/core/batch.c \
            $(SRC_DIR)/crypto/crypto.c \
            $(SRC_DIR)/crypto/sha256.c \
-           $(SRC_DIR)/utils/serialize.c
+           $(SRC_DIR)/utils/serialize.c \
+           $(SRC_DIR)/utils/delta.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 LIB_OBJS = $(LIB_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
-.PHONY: all clean install test demo test-all test-conservation test-serialization test-performance
+.PHONY: all clean install demo test test-all
 
 all: $(BIN)
 
@@ -36,14 +44,20 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(BUILD_DIR) $(BIN) state.pcs wallet.pcw
-	rm -f test_conservation test_serialization test_performance
+	rm -rf $(BUILD_DIR) $(BIN) state.pcs wallet.pcw *.pcp
+	rm -f test_conservation test_serialization test_performance test_exploration test_features
 
 install: $(BIN)
 	cp $(BIN) /usr/local/bin/
 
 demo: $(BIN)
 	./$(BIN) demo
+
+stream-demo: $(BIN)
+	./$(BIN) stream demo
+
+# Build all library objects
+lib: $(LIB_OBJS)
 
 # Test targets
 test_conservation: $(LIB_OBJS) tests/test_conservation.c
@@ -55,14 +69,8 @@ test_serialization: $(LIB_OBJS) tests/test_serialization.c
 test_performance: $(LIB_OBJS) tests/test_performance.c
 	$(CC) $(CFLAGS) -o $@ tests/test_performance.c $(LIB_OBJS) $(LDFLAGS)
 
-test-conservation: test_conservation
-	./test_conservation
-
-test-serialization: test_serialization
-	./test_serialization
-
-test-performance: test_performance
-	./test_performance
+test_exploration: $(LIB_OBJS) tests/test_exploration.c
+	$(CC) $(CFLAGS) -o $@ tests/test_exploration.c $(LIB_OBJS) $(LDFLAGS)
 
 test-all: test_conservation test_serialization test_performance
 	@echo ""
