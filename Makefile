@@ -19,7 +19,9 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/crypto/crypto.c \
        $(SRC_DIR)/crypto/sha256.c \
        $(SRC_DIR)/utils/serialize.c \
-       $(SRC_DIR)/utils/delta.c
+       $(SRC_DIR)/utils/delta.c \
+       $(SRC_DIR)/network/gossip.c \
+       $(SRC_DIR)/network/sharding.c
 
 # Library sources (no main)
 LIB_SRCS = $(SRC_DIR)/core/state.c \
@@ -31,7 +33,9 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/crypto/crypto.c \
            $(SRC_DIR)/crypto/sha256.c \
            $(SRC_DIR)/utils/serialize.c \
-           $(SRC_DIR)/utils/delta.c
+           $(SRC_DIR)/utils/delta.c \
+           $(SRC_DIR)/network/gossip.c \
+           $(SRC_DIR)/network/sharding.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 LIB_OBJS = $(LIB_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
