@@ -21,6 +21,12 @@
 #define HEARTBEAT_INTERVAL 30
 #define SYNC_INTERVAL 10
 
+// Security limits
+#define MAX_MSG_PER_MINUTE 100    // Max messages per minute per peer
+#define MAX_TX_PER_MINUTE 50      // Max TXs per minute per peer
+#define MAX_VIOLATIONS 5          // Ban after this many violations
+#define BAN_DURATION 3600         // 1 hour ban
+
 // Message types
 #define MSG_VERSION     0x01
 #define MSG_VERACK      0x02
@@ -50,6 +56,13 @@ typedef struct {
     int handshaked;
     uint64_t last_seen;
     uint64_t version;
+    // Security fields
+    uint32_t msg_count;         // Messages this minute
+    uint32_t tx_count;          // TXs this minute
+    time_t rate_reset;          // When to reset counters
+    int banned;                 // Banned flag
+    time_t ban_until;           // Ban expiry (0 = permanent)
+    uint32_t violations;        // Protocol violations
 } PCNodePeer;
 
 // Node state
@@ -221,8 +234,72 @@ void handle_ping(PCNode* node, PCNodePeer* peer, const uint8_t* data, size_t len
     peer->last_seen = time(NULL);
 }
 
+// Ban a peer
+void ban_peer(PCNodePeer* peer, int permanent) {
+    peer->banned = 1;
+    peer->ban_until = permanent ? 0 : time(NULL) + BAN_DURATION;
+    printf("[%s:%d] BANNED for %s\n", peer->ip, peer->port, 
+           permanent ? "permanently" : "1 hour");
+    if (peer->connected) {
+        close(peer->fd);
+        peer->connected = 0;
+    }
+}
+
+// Check rate limits
+int check_rate_limit(PCNodePeer* peer) {
+    time_t now = time(NULL);
+    
+    // Reset counters every minute
+    if (now >= peer->rate_reset) {
+        peer->msg_count = 0;
+        peer->tx_count = 0;
+        peer->rate_reset = now + 60;
+    }
+    
+    peer->msg_count++;
+    
+    if (peer->msg_count > MAX_MSG_PER_MINUTE) {
+        peer->violations++;
+        printf("[%s:%d] Rate limit exceeded (%u msgs/min)\n", 
+               peer->ip, peer->port, peer->msg_count);
+        if (peer->violations >= MAX_VIOLATIONS) {
+            ban_peer(peer, 0);
+        }
+        return -1;
+    }
+    
+    return 0;
+}
+
 // Handle incoming message
 void handle_message(PCNode* node, PCNodePeer* peer, PCMessageHeader* header, uint8_t* data) {
+    // Skip if banned
+    if (peer->banned) {
+        if (peer->ban_until && time(NULL) >= peer->ban_until) {
+            peer->banned = 0;  // Unban
+            peer->violations = 0;
+        } else {
+            return;
+        }
+    }
+    
+    // Rate limiting
+    if (check_rate_limit(peer) != 0) {
+        return;
+    }
+    
+    // TX-specific rate limit
+    if (header->type == MSG_TX) {
+        peer->tx_count++;
+        if (peer->tx_count > MAX_TX_PER_MINUTE) {
+            peer->violations++;
+            printf("[%s:%d] TX rate limit (%u tx/min)\n", 
+                   peer->ip, peer->port, peer->tx_count);
+            return;
+        }
+    }
+    
     switch (header->type) {
         case MSG_VERSION:
             handle_version(node, peer, data, header->length);
@@ -247,8 +324,12 @@ void handle_message(PCNode* node, PCNodePeer* peer, PCMessageHeader* header, uin
             peer->last_seen = time(NULL);
             break;
         default:
-            printf("[%s:%d] Unknown message type: 0x%02x\n", 
-                   peer->ip, peer->port, header->type);
+            peer->violations++;
+            printf("[%s:%d] Unknown message type: 0x%02x (violation %u)\n", 
+                   peer->ip, peer->port, header->type, peer->violations);
+            if (peer->violations >= MAX_VIOLATIONS) {
+                ban_peer(peer, 1);  // Permanent ban for protocol violation
+            }
     }
 }
 
