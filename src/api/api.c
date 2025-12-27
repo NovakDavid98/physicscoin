@@ -22,6 +22,8 @@ extern void handle_explorer_consensus(int client);
 extern void handle_explorer_health(int client, PCState* state);
 extern void handle_explorer_state_hash(int client, PCState* state);
 extern void handle_explorer_supply(int client, PCState* state);
+extern void handle_explorer_conservation_check(int client, PCState* state);
+extern void handle_explorer_wallets_top(int client, PCState* state, const char* count_str);
 
 #define API_PORT 8545
 #define MAX_REQUEST_SIZE 8192
@@ -485,7 +487,9 @@ int pc_api_serve(PCState* state, int port) {
             else if (strcmp(path, "/explorer/health") == 0) handle_explorer_health(client, state);
             else if (strcmp(path, "/explorer/state/hash") == 0) handle_explorer_state_hash(client, state);
             else if (strcmp(path, "/explorer/supply") == 0) handle_explorer_supply(client, state);
+            else if (strcmp(path, "/explorer/conservation_check") == 0) handle_explorer_conservation_check(client, state);
             else if (strncmp(path, "/explorer/wallet/", 17) == 0) handle_explorer_wallet(client, state, path + 17);
+            else if (strncmp(path, "/explorer/wallets/top/", 22) == 0) handle_explorer_wallets_top(client, state, path + 22);
             else if (strncmp(path, "/explorer/search/", 17) == 0) handle_explorer_search(client, state, path + 17);
             else send_error(client, -32601, "Not found");
         }

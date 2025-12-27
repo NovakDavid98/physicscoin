@@ -339,17 +339,111 @@ void handle_explorer_supply(int client, PCState* state) {
     send_json_response(client, 200, body);
 }
 
+// GET /explorer/conservation_check - Verify energy conservation law
+void handle_explorer_conservation_check(int client, PCState* state) {
+    double sum = 0.0;
+    for (uint32_t i = 0; i < state->num_wallets; i++) {
+        sum += state->wallets[i].energy;
+    }
+    
+    double error = fabs(state->total_supply - sum);
+    int is_valid = (error < 1e-9); // Within floating point precision
+    
+    char body[512];
+    snprintf(body, sizeof(body),
+             "{"
+             "\"status\":\"%s\","
+             "\"message\":\"%s\","
+             "\"error\":%.12e,"
+             "\"total_supply\":%.8f,"
+             "\"wallet_sum\":%.8f"
+             "}",
+             is_valid ? "OK" : "VIOLATED",
+             is_valid ? "Conservation law holds" : "Conservation law violated",
+             error,
+             state->total_supply,
+             sum);
+    
+    send_json_response(client, 200, body);
+}
+
+// GET /explorer/wallets/top/<count> - Top N wallets
+void handle_explorer_wallets_top(int client, PCState* state, const char* count_str) {
+    uint32_t count = count_str ? (uint32_t)atoi(count_str) : 10;
+    if (count == 0) count = 10;
+    if (count > 100) count = 100; // Limit to 100
+    if (count > state->num_wallets) count = state->num_wallets;
+    
+    // Create sorted list of wallets
+    typedef struct {
+        uint32_t index;
+        double balance;
+    } WalletSort;
+    
+    WalletSort* sorted = malloc(state->num_wallets * sizeof(WalletSort));
+    if (!sorted) {
+        send_error(client, -32000, "Memory allocation failed");
+        return;
+    }
+    
+    for (uint32_t i = 0; i < state->num_wallets; i++) {
+        sorted[i].index = i;
+        sorted[i].balance = state->wallets[i].energy;
+    }
+    
+    // Bubble sort (good enough for small lists)
+    for (uint32_t i = 0; i < state->num_wallets; i++) {
+        for (uint32_t j = i + 1; j < state->num_wallets; j++) {
+            if (sorted[j].balance > sorted[i].balance) {
+                WalletSort temp = sorted[i];
+                sorted[i] = sorted[j];
+                sorted[j] = temp;
+            }
+        }
+    }
+    
+    // Build JSON response
+    char body[16384] = "{\"rich_list\":[";
+    char* p = body + strlen(body);
+    size_t remaining = sizeof(body) - strlen(body) - 10;
+    
+    for (uint32_t i = 0; i < count && remaining > 200; i++) {
+        PCWallet* w = &state->wallets[sorted[i].index];
+        char addr[65];
+        pc_pubkey_to_hex(w->public_key, addr);
+        
+        double percent = (w->energy / state->total_supply) * 100.0;
+        
+        int written = snprintf(p, remaining,
+                              "%s{\"rank\":%u,\"address\":\"%s\",\"balance\":%.8f,\"percent\":%.4f}",
+                              i > 0 ? "," : "",
+                              i + 1,
+                              addr,
+                              w->energy,
+                              percent);
+        p += written;
+        remaining -= written;
+    }
+    
+    strcat(body, "]}");
+    
+    free(sorted);
+    send_json_response(client, 200, body);
+}
+
 // Integrate explorer endpoints into main API server
 void register_explorer_endpoints(void) {
     printf("Explorer API endpoints registered:\n");
-    printf("  GET  /explorer/stats          - Network statistics\n");
-    printf("  GET  /explorer/wallet/<addr>  - Wallet details\n");
-    printf("  GET  /explorer/rich            - Rich list (top 20)\n");
-    printf("  GET  /explorer/distribution    - Balance distribution\n");
-    printf("  GET  /explorer/search/<query>  - Search address\n");
-    printf("  GET  /explorer/consensus       - Consensus state\n");
-    printf("  GET  /explorer/health          - System health\n");
-    printf("  GET  /explorer/state/hash      - State hash info\n");
-    printf("  GET  /explorer/supply          - Supply analytics\n");
+    printf("  GET  /explorer/stats                - Network statistics\n");
+    printf("  GET  /explorer/wallet/<addr>        - Wallet details\n");
+    printf("  GET  /explorer/rich                 - Rich list (top 20)\n");
+    printf("  GET  /explorer/wallets/top/<count>  - Top N wallets\n");
+    printf("  GET  /explorer/distribution         - Balance distribution\n");
+    printf("  GET  /explorer/search/<query>       - Search address\n");
+    printf("  GET  /explorer/consensus            - Consensus state\n");
+    printf("  GET  /explorer/health               - System health\n");
+    printf("  GET  /explorer/state/hash           - State hash info\n");
+    printf("  GET  /explorer/supply               - Supply analytics\n");
+    printf("  GET  /explorer/conservation_check   - Verify conservation law\n");
 }
 

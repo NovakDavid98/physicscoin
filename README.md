@@ -1,12 +1,12 @@
-# PhysicsCoin v2.2
+# PhysicsCoin v2.3
 
 **The world's first physics-based cryptocurrency. Faster than Solana.**
 
 Replace **500 GB blockchain** with a **244-byte state vector**.
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-25%2F25-brightgreen)]()
-[![Security](https://img.shields.io/badge/security-audited-green)]()
+[![Tests](https://img.shields.io/badge/tests-39%2F39-brightgreen)]()
+[![Security](https://img.shields.io/badge/security-hardened-green)]()
 [![Performance](https://img.shields.io/badge/verify-116K%2Fsec-blue)]()
 [![SDK](https://img.shields.io/badge/SDK-JS%20%7C%20Python-orange)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -21,13 +21,26 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 
 ---
 
+## 🚀 What's New in v2.3 (Testing & Bug Fixes)
+
+| Feature | Description |
+|---------|-------------|
+| **✅ Full Test Coverage** | 39 tests across core, security, and SDKs |
+| **🔍 Explorer API Complete** | Added `/explorer/conservation_check` and `/explorer/wallets/top/<count>` |
+| **📦 SDK Testing** | Comprehensive test suites for JS/TS and Python SDKs |
+| **🔧 Bug Fixes** | Fixed API routing and SDK export compatibility |
+| **📊 Test Reports** | Detailed testing documentation and results |
+| **100% Pass Rate** | All tests passing - production ready |
+
+[**Full Testing Report →**](docs/v2.3-testing-report.md)
+
 ## 🚀 What's New in v2.2 (Ecosystem Expansion)
 
 | Feature | Description |
 |---------|-------------|
 | **⚡ PoA Consensus** | Multi-validator Proof-of-Authority with 2/3 quorum |
 | **💳 Subscriptions** | Monthly/yearly recurring payment system |
-| **🔍 Block Explorer API** | 9 new endpoints for blockchain analytics |
+| **🔍 Block Explorer API** | 11 endpoints for blockchain analytics |
 | **📦 JavaScript SDK** | Official TypeScript SDK with full typing |
 | **🐍 Python SDK** | Complete Python client with type hints |
 | **🌐 Developer Ecosystem** | SDKs, APIs, and integration tools |

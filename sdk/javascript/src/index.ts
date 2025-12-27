@@ -335,3 +335,7 @@ export class Utils {
 // Export default client
 export default PhysicsCoinClient;
 
+// Backward compatibility aliases
+export { PhysicsCoinClient as PhysicsCoinAPI };
+export { PhysicsCoinCrypto as PhysicsCoinWallet };
+

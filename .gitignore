@@ -18,3 +18,9 @@ wallet.pcw
 # OS
 .DS_Store
 Thumbs.db
+node_modules/
+sdk/python/venv/
+sdk/python/__pycache__/
+sdk/python/*.egg-info/
+*.log
+test_*
