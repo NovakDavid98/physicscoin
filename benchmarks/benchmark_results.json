@@ -12,7 +12,7 @@
     {"name": "Bitcoin", "tps": 7},
     {"name": "Ethereum", "tps": 30},
     {"name": "Solana", "tps": 65000},
-    {"name": "PhysicsCoin", "tps": 214653}
+    {"name": "PhysicsCoin", "tps": 116439}
   ]
 },
 {
