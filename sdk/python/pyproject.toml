@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "physicscoin-sdk"
+version = "1.0.0"
+description = "Official Python SDK for PhysicsCoin - Physics-based cryptocurrency"
+readme = "README.md"
+authors = [
+    {name = "PhysicsCoin Team"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.28.0",
+    "PyNaCl>=1.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=22.0.0",
+    "mypy>=0.990",
+]
+
+[project.urls]
+Homepage = "https://github.com/NovakDavid98/physicscoin"
+Documentation = "https://github.com/NovakDavid98/physicscoin"
+Repository = "https://github.com/NovakDavid98/physicscoin"
+"Bug Tracker" = "https://github.com/NovakDavid98/physicscoin/issues"
+
