@@ -14,6 +14,7 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/core/proofs.c \
        $(SRC_DIR)/core/streams.c \
        $(SRC_DIR)/core/subscriptions.c \
+       $(SRC_DIR)/core/faucet.c \
        $(SRC_DIR)/core/batch.c \
        $(SRC_DIR)/core/replay.c \
        $(SRC_DIR)/core/timetravel.c \
@@ -24,6 +25,7 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/network/gossip.c \
        $(SRC_DIR)/network/sharding.c \
        $(SRC_DIR)/network/sockets.c \
+       $(SRC_DIR)/network/network_config.c \
        $(SRC_DIR)/consensus/vector_clock.c \
        $(SRC_DIR)/consensus/ordering.c \
        $(SRC_DIR)/consensus/checkpoint.c \
@@ -40,6 +42,7 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/core/proofs.c \
            $(SRC_DIR)/core/streams.c \
            $(SRC_DIR)/core/subscriptions.c \
+           $(SRC_DIR)/core/faucet.c \
            $(SRC_DIR)/core/batch.c \
            $(SRC_DIR)/core/replay.c \
            $(SRC_DIR)/core/timetravel.c \
@@ -48,6 +51,15 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/utils/serialize.c \
            $(SRC_DIR)/utils/delta.c \
            $(SRC_DIR)/network/gossip.c \
+           $(SRC_DIR)/network/sharding.c \
+           $(SRC_DIR)/network/sockets.c \
+           $(SRC_DIR)/network/network_config.c \
+           $(SRC_DIR)/consensus/vector_clock.c \
+           $(SRC_DIR)/consensus/ordering.c \
+           $(SRC_DIR)/consensus/checkpoint.c \
+           $(SRC_DIR)/consensus/validator.c \
+           $(SRC_DIR)/consensus/poa_consensus.c \
+           $(SRC_DIR)/persistence/wal.c \
            $(SRC_DIR)/network/sharding.c \
            $(SRC_DIR)/network/sockets.c \
            $(SRC_DIR)/consensus/vector_clock.c \

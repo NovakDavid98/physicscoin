@@ -1,7 +1,9 @@
-// main.c - PhysicsCoin CLI v2.0
+// main.c - PhysicsCoin CLI v2.4
 // Full command-line interface with all features
 
 #include "../include/physicscoin.h"
+#include "../include/network_config.h"
+#include "../include/faucet.h"
 #include "../crypto/sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -679,12 +681,55 @@ int cmd_demo(void) {
 // ============ Main entry point ============
 
 int main(int argc, char** argv) {
+    // Check for --network flag before processing commands
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--network") == 0 && i + 1 < argc) {
+            PCNetworkType network = pc_network_parse(argv[i + 1]);
+            pc_network_set_current(network);
+            // Remove the --network and its value from argv
+            for (int j = i; j < argc - 2; j++) {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            break;
+        }
+    }
+    
+    // Initialize faucet if needed
+    if (pc_network_faucet_enabled()) {
+        pc_faucet_init();
+    }
+    
     if (argc < 2) {
         print_usage();
         return 0;
     }
     
     const char* cmd = argv[1];
+    
+    // Network commands
+    if (strcmp(cmd, "network") == 0) {
+        if (argc < 3) {
+            printf("Usage: physicscoin network <info|set>\n");
+            return 1;
+        }
+        if (strcmp(argv[2], "info") == 0) {
+            pc_network_print_info();
+            return 0;
+        }
+        else if (strcmp(argv[2], "set") == 0) {
+            if (argc < 4) {
+                printf("Usage: physicscoin network set <mainnet|testnet|devnet>\n");
+                return 1;
+            }
+            PCNetworkType network = pc_network_parse(argv[3]);
+            pc_network_set_current(network);
+            pc_network_print_info();
+            return 0;
+        }
+        printf("Unknown network command: %s\n", argv[2]);
+        return 1;
+    }
     
     // Basic commands
     if (strcmp(cmd, "init") == 0) {
@@ -902,15 +947,17 @@ int main(int argc, char** argv) {
             // Forward declare api function
             extern int pc_api_serve(PCState* state, int port);
             
+            const PCNetworkConfig* config = pc_network_get_config(pc_network_get_current());
+            
             PCState state;
-            if (pc_state_load(&state, "state.pcs") != PC_OK) {
-                printf("Creating demo state for API...\n");
+            if (pc_state_load(&state, config->state_file) != PC_OK) {
+                printf("Creating %s genesis state for API...\n", config->network_name);
                 PCKeypair genesis;
                 pc_keypair_generate(&genesis);
-                pc_state_genesis(&state, genesis.public_key, 1000000.0);
+                pc_state_genesis(&state, genesis.public_key, config->genesis_supply);
             }
             
-            int port = (argc >= 4) ? atoi(argv[3]) : 8545;
+            int port = (argc >= 4) ? atoi(argv[3]) : config->api_port;
             pc_api_serve(&state, port);
             pc_state_free(&state);
             return 0;

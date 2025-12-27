@@ -24,7 +24,15 @@ typedef enum {
     PC_ERR_INVALID_AMOUNT = -6,
     PC_ERR_CONSERVATION_VIOLATED = -7,
     PC_ERR_IO = -8,
-    PC_ERR_CRYPTO = -9
+    PC_ERR_CRYPTO = -9,
+    PC_ERR_INVALID_STATE = -10,
+    PC_ERR_RATE_LIMIT = -11,
+    PC_ERR_LIMIT_EXCEEDED = -12,
+    PC_ERR_EXISTS = -13,
+    PC_ERR_NOT_FOUND = -14,
+    PC_ERR_NO_PAYMENT_DUE = -15,
+    PC_ERR_INVALID_DATA = -16,
+    PC_ERR_INVALID_BLOCK = -17
 } PCError;
 
 // Wallet structure

@@ -1,8 +1,10 @@
 // api.c - Secure JSON-RPC API Server
 // Provides HTTP API for external wallet/app integration
-// SECURITY HARDENED: No faucet, requires signed transactions
+// SECURITY HARDENED: Signed transactions required, faucet only on testnet/devnet
 
 #include "../include/physicscoin.h"
+#include "../include/network_config.h"
+#include "../include/faucet.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -409,6 +411,69 @@ static void handle_conservation(int client, PCState* state) {
     send_json_response(client, 200, body);
 }
 
+// POST /faucet/request - Request testnet funds (testnet/devnet only)
+static void handle_faucet_request(int client, PCState* state, const char* json_body) {
+    // Check if faucet is enabled for current network
+    if (!pc_network_faucet_enabled()) {
+        send_error(client, -32000, "Faucet not available on this network");
+        return;
+    }
+    
+    // Get address from JSON
+    char* address_str = get_json_field(json_body, "address");
+    if (!address_str) {
+        send_error(client, -32602, "Missing 'address' field");
+        return;
+    }
+    
+    uint8_t address[32];
+    if (pc_hex_to_pubkey(address_str, address) != PC_OK) {
+        free(address_str);
+        send_error(client, -32602, "Invalid address format");
+        return;
+    }
+    free(address_str);
+    
+    // Check if address can request
+    if (!pc_faucet_can_request(address)) {
+        uint64_t wait_time = pc_faucet_time_until_next(address);
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "Faucet cooldown active. Try again in %lu seconds", wait_time);
+        send_error(client, -32000, error_msg);
+        return;
+    }
+    
+    // Request faucet funds
+    double amount = 0.0;
+    PCError err = pc_faucet_request(state, address, &amount);
+    
+    if (err == PC_OK) {
+        char body[512];
+        char addr_hex[65];
+        pc_pubkey_to_hex(address, addr_hex);
+        snprintf(body, sizeof(body),
+                 "{\"success\":true,\"address\":\"%s\",\"amount\":%.8f,\"message\":\"Faucet funds sent successfully\"}",
+                 addr_hex, amount);
+        send_json_response(client, 200, body);
+    } else {
+        send_error(client, -32000, pc_strerror(err));
+    }
+}
+
+// GET /faucet/info - Get faucet information
+static void handle_faucet_info(int client) {
+    const PCNetworkConfig* config = pc_network_get_config(pc_network_get_current());
+    
+    char body[512];
+    snprintf(body, sizeof(body),
+             "{\"enabled\":%s,\"amount\":%.8f,\"cooldown\":%d,\"network\":\"%s\"}",
+             config->has_faucet ? "true" : "false",
+             config->faucet_amount,
+             config->faucet_cooldown,
+             config->network_name);
+    send_json_response(client, 200, body);
+}
+
 // Main API server
 int pc_api_serve(PCState* state, int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -425,10 +490,16 @@ int pc_api_serve(PCState* state, int port) {
     printf("╔═══════════════════════════════════════════════════════════════╗\n");
     printf("║          PHYSICSCOIN SECURE API SERVER                        ║\n");
     printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+    const PCNetworkConfig* config = pc_network_get_config(pc_network_get_current());
+    printf("Network: %s\n", config->network_name);
     printf("Listening on: http://localhost:%d\n", port);
     printf("Security: Rate limiting enabled (%d req/min)\n", MAX_REQUESTS_PER_MINUTE);
     printf("Security: Signed transactions required\n");
-    printf("Security: No faucet (wallets start with 0 balance)\n\n");
+    if (config->has_faucet) {
+        printf("Faucet: ✓ enabled (%.2f coins, %d sec cooldown)\n\n", config->faucet_amount, config->faucet_cooldown);
+    } else {
+        printf("Faucet: ✗ disabled (mainnet mode)\n\n");
+    }
     printf("Endpoints:\n");
     printf("  GET  /status          - Network status\n");
     printf("  GET  /wallets         - List wallets\n");
@@ -437,7 +508,12 @@ int pc_api_serve(PCState* state, int port) {
     printf("  GET  /conservation    - Verify conservation law\n");
     printf("  POST /wallet/create   - Create wallet (0 balance)\n");
     printf("  POST /transaction/send - Send signed transaction\n");
-    printf("  POST /proof/generate  - Generate balance proof\n\n");
+    printf("  POST /proof/generate  - Generate balance proof\n");
+    if (config->has_faucet) {
+        printf("  POST /faucet/request  - Request faucet funds (testnet only)\n");
+        printf("  GET  /faucet/info     - Get faucet information\n");
+    }
+    printf("\n");
     
     while (1) {
         struct sockaddr_in client_addr;
@@ -478,6 +554,7 @@ int pc_api_serve(PCState* state, int port) {
             else if (strcmp(path, "/wallets") == 0) handle_wallets(client, state);
             else if (strcmp(path, "/transactions") == 0) handle_transactions(client);
             else if (strcmp(path, "/conservation") == 0) handle_conservation(client, state);
+            else if (strcmp(path, "/faucet/info") == 0) handle_faucet_info(client);
             else if (strncmp(path, "/balance/", 9) == 0) handle_balance(client, state, path + 9);
             // Explorer endpoints
             else if (strcmp(path, "/explorer/stats") == 0) handle_explorer_stats(client, state);
@@ -501,6 +578,7 @@ int pc_api_serve(PCState* state, int port) {
             else if (strcmp(path, "/transaction/send") == 0) handle_transaction_send(client, state, json_body);
             else if (strcmp(path, "/stream/open") == 0) handle_stream_open(client, json_body);
             else if (strcmp(path, "/proof/generate") == 0) handle_proof_generate(client, state, json_body);
+            else if (strcmp(path, "/faucet/request") == 0) handle_faucet_request(client, state, json_body);
             else send_error(client, -32601, "Not found");
         }
         else {
