@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <time.h>
 
 #define MAX_PEERS 125
 #define BUFFER_SIZE 65536
