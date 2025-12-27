@@ -1,5 +1,9 @@
 // API Service Layer for PhysicsCoin
-const API_URL = 'http://localhost:8545'
+let API_URL = 'http://localhost:18545' // Default to testnet
+
+export function setApiUrl(url: string) {
+    API_URL = url
+}
 
 export interface WalletResponse {
     mnemonic: string
@@ -38,6 +42,20 @@ export interface ProofResponse {
     balance: number
     state_hash: string
     timestamp: number
+}
+
+export interface FaucetInfoResponse {
+    enabled: boolean
+    amount: number
+    cooldown: number
+    network: string
+}
+
+export interface FaucetRequestResponse {
+    success: boolean
+    address: string
+    amount: number
+    message: string
 }
 
 // Wallet endpoints
@@ -118,12 +136,39 @@ export async function getStatus(): Promise<StatusResponse> {
     return await res.json()
 }
 
+// Faucet endpoints (testnet/devnet only)
+export async function getFaucetInfo(): Promise<FaucetInfoResponse> {
+    const res = await fetch(`${API_URL}/faucet/info`)
+    
+    if (!res.ok) throw new Error('Failed to fetch faucet info')
+    return await res.json()
+}
+
+export async function requestFaucet(address: string): Promise<FaucetRequestResponse> {
+    const res = await fetch(`${API_URL}/faucet/request`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ address })
+    })
+    
+    if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error?.message || 'Faucet request failed')
+    }
+    return await res.json()
+}
+
 export default {
+    setApiUrl,
     createWallet,
     recoverWallet,
     getBalance,
     sendTransaction,
     openStream,
     generateProof,
-    getStatus
+    getStatus,
+    getFaucetInfo,
+    requestFaucet
 }

@@ -19,7 +19,11 @@ interface Transaction {
   incoming: boolean
 }
 
+type Network = 'testnet' | 'mainnet' | 'devnet'
+
 function App() {
+  const [network, setNetwork] = useState<Network>('testnet')
+  const [faucetInfo, setFaucetInfo] = useState<{enabled: boolean, amount: number, cooldown: number} | null>(null)
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     balance: 0,
@@ -31,7 +35,6 @@ function App() {
   const [sendAmount, setSendAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'send' | 'receive' | 'streams' | 'proofs' | 'history'>('dashboard')
-  const [showMnemonic, setShowMnemonic] = useState(false)
   const [showMnemonic, setShowMnemonic] = useState(false)
   const [nodeStatus, setNodeStatus] = useState({ peers: 0, version: 0, wallets: 0, tx_count: 0 })
 
@@ -50,6 +53,19 @@ function App() {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3000)
   }
+
+  // Network configuration
+  useEffect(() => {
+    const ports = { testnet: 18545, mainnet: 8545, devnet: 28545 }
+    API.setApiUrl(`http://localhost:${ports[network]}`)
+    
+    // Fetch faucet info
+    API.getFaucetInfo().then(info => {
+      setFaucetInfo(info)
+    }).catch(() => {
+      setFaucetInfo(null)
+    })
+  }, [network])
 
   // Wallet persistence functions
   const saveWallet = (address: string, mnemonic: string) => {
@@ -159,10 +175,27 @@ function App() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
+    notify('Copied to clipboard!', 'success')
   }
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 8)}...${addr.slice(-8)}`
+  }
+
+  // Request faucet funds (testnet only)
+  const requestFaucet = async () => {
+    if (!wallet.address || !faucetInfo?.enabled) return
+    
+    setLoading(true)
+    try {
+      const result = await API.requestFaucet(wallet.address)
+      setWallet(prev => ({ ...prev, balance: prev.balance + result.amount }))
+      notify(`Received ${result.amount} PCS from faucet!`, 'success')
+    } catch (error: any) {
+      notify(error.message || 'Faucet request failed', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Check API status and update balance
@@ -199,6 +232,24 @@ function App() {
     return (
       <div className="app">
         <div className="welcome-screen">
+          {/* Network Selector */}
+          <div className="network-selector" style={{ marginBottom: '2rem' }}>
+            <label style={{ marginBottom: '0.5rem', display: 'block', color: 'var(--text-secondary)' }}>Select Network:</label>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              {(['testnet', 'mainnet', 'devnet'] as Network[]).map(net => (
+                <button
+                  key={net}
+                  className={`btn ${network === net ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setNetwork(net)}
+                  style={{ textTransform: 'capitalize' }}
+                >
+                  {net}
+                  {net === 'testnet' && faucetInfo?.enabled && ' 💧'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="logo">
             <div className="logo-icon">₿</div>
             <h1>PhysicsCoin</h1>
@@ -295,6 +346,17 @@ function App() {
         <div className="header-brand">
           <span className="logo-small">₿</span>
           <span>PhysicsCoin Wallet</span>
+          <span style={{ 
+            marginLeft: '1rem', 
+            padding: '0.25rem 0.75rem', 
+            background: network === 'testnet' ? 'var(--warning)' : network === 'devnet' ? 'var(--info)' : 'var(--success)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.75rem',
+            fontWeight: '600',
+            textTransform: 'uppercase'
+          }}>
+            {network}
+          </span>
         </div>
         <div className="header-status">
           <div className="status-item">
@@ -373,6 +435,16 @@ function App() {
               <button className="btn btn-secondary" onClick={() => setActiveTab('receive')}>
                 📥 Receive
               </button>
+              {faucetInfo?.enabled && (
+                <button 
+                  className="btn btn-success" 
+                  onClick={requestFaucet}
+                  disabled={loading}
+                  title={`Get ${faucetInfo.amount} test coins`}
+                >
+                  💧 Faucet
+                </button>
+              )}
             </div>
           </div>
         )}

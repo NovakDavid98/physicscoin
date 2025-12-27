@@ -1,4 +1,4 @@
-# PhysicsCoin v2.3
+# PhysicsCoin v2.4
 
 **The world's first physics-based cryptocurrency. Faster than Solana.**
 
@@ -9,6 +9,7 @@ Replace **500 GB blockchain** with a **244-byte state vector**.
 [![Security](https://img.shields.io/badge/security-hardened-green)]()
 [![Performance](https://img.shields.io/badge/verify-116K%2Fsec-blue)]()
 [![SDK](https://img.shields.io/badge/SDK-JS%20%7C%20Python-orange)]()
+[![Testnet](https://img.shields.io/badge/testnet-live-blue)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -20,6 +21,34 @@ PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is model
 **Read how:** [$\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$](MATHEMATICAL_FOUNDATION.md) became a cryptocurrency.
 
 ---
+
+## 🚀 What's New in v2.4 (Testnet Launch)
+
+| Feature | Description |
+|---------|-------------|
+| **🌐 Network Types** | Mainnet, Testnet, Devnet with separate configs |
+| **💧 Testnet Faucet** | Get 100 test coins per hour for testing |
+| **🖥️ Multi-Node Scripts** | Easy 3-node testnet deployment |
+| **⚛️ Frontend Integration** | Network selector + faucet button in web wallet |
+| **📚 Complete Documentation** | Testnet guide with examples |
+| **🔌 API Updates** | `/faucet/request` and `/faucet/info` endpoints |
+
+[**Testnet Guide →**](docs/TESTNET_GUIDE.md) | [**Try it now!**](#testnet-quick-start)
+
+## 🧪 Testnet Quick Start
+
+```bash
+# Start testnet node
+./physicscoin --network testnet api serve 18545
+
+# Open web wallet
+cd web && npm install && npm run dev
+
+# Or use CLI
+./physicscoin --network testnet wallet create
+```
+
+**Get test coins**: http://localhost:5173 → Select "Testnet" → Click "💧 Faucet"
 
 ## 🚀 What's New in v2.3 (Testing & Bug Fixes)
 
