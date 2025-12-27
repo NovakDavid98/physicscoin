@@ -14,6 +14,8 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/core/proofs.c \
        $(SRC_DIR)/core/streams.c \
        $(SRC_DIR)/core/batch.c \
+       $(SRC_DIR)/core/replay.c \
+       $(SRC_DIR)/core/timetravel.c \
        $(SRC_DIR)/crypto/crypto.c \
        $(SRC_DIR)/crypto/sha256.c \
        $(SRC_DIR)/utils/serialize.c \
@@ -24,6 +26,8 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/core/proofs.c \
            $(SRC_DIR)/core/streams.c \
            $(SRC_DIR)/core/batch.c \
+           $(SRC_DIR)/core/replay.c \
+           $(SRC_DIR)/core/timetravel.c \
            $(SRC_DIR)/crypto/crypto.c \
            $(SRC_DIR)/crypto/sha256.c \
            $(SRC_DIR)/utils/serialize.c \
