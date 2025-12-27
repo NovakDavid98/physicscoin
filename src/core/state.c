@@ -72,7 +72,7 @@ PCError pc_state_create_wallet(PCState* state, const uint8_t* pubkey, double ini
     
     // Expand capacity if needed
     if (state->num_wallets >= state->wallets_capacity) {
-        size_t new_cap = state->wallets_capacity * 2;
+        size_t new_cap = state->wallets_capacity == 0 ? 8 : state->wallets_capacity * 2;
         if (new_cap > PHYSICSCOIN_MAX_WALLETS) {
             return PC_ERR_MAX_WALLETS;
         }

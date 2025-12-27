@@ -46,11 +46,17 @@ PCError pc_sharding_init(PCShardedNetwork* network, double initial_supply) {
         
         // Create empty state for this shard
         PCState* state = &network->shards[i].local_state;
+        memset(state, 0, sizeof(PCState));  // Zero everything first
         state->version = 1;
         state->total_supply = 0;  // Each shard starts with 0
         state->num_wallets = 0;
         state->timestamp = (uint64_t)time(NULL);
         state->wallets = NULL;
+        state->wallets_capacity = 0;  // Start with 0, will grow on first wallet
+        
+        // Initialize hashes to zero
+        memset(state->state_hash, 0, 32);
+        memset(state->prev_hash, 0, 32);
         
         // Compute initial hash
         pc_state_compute_hash(state);
