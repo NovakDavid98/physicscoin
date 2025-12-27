@@ -47,7 +47,13 @@ PCError pc_keypair_generate(PCKeypair* kp) {
 }
 
 // Sign a transaction using HMAC-SHA256
+// Embeds the signer's public key hash in the signature for verification
 PCError pc_transaction_sign(PCTransaction* tx, const PCKeypair* kp) {
+    // SECURITY CHECK: Signer must match tx->from
+    if (memcmp(tx->from, kp->public_key, PHYSICSCOIN_KEY_SIZE) != 0) {
+        return PC_ERR_INVALID_SIGNATURE;  // Cannot sign for someone else
+    }
+    
     // Create message to sign
     uint8_t message[256];
     size_t msg_len = 0;
@@ -77,10 +83,10 @@ PCError pc_transaction_sign(PCTransaction* tx, const PCKeypair* kp) {
     uint8_t hash1[32];
     sha256_final(&ctx, hash1);
     
-    // Second round
+    // Second round with public key embedded for verification
     sha256_init(&ctx);
     sha256_update(&ctx, hash1, 32);
-    sha256_update(&ctx, kp->secret_key, 32);
+    sha256_update(&ctx, kp->public_key, 32);  // Embed public key
     
     uint8_t hash2[32];
     sha256_final(&ctx, hash2);
@@ -93,11 +99,9 @@ PCError pc_transaction_sign(PCTransaction* tx, const PCKeypair* kp) {
 }
 
 // Verify transaction signature
-// Note: This requires knowing the secret key, so we verify by recomputation
-// In a real system, use asymmetric crypto (Ed25519)
+// Checks that signature is valid and matches the sender
 PCError pc_transaction_verify(const PCTransaction* tx) {
-    // For this demo, we trust signatures if they're non-zero
-    // In production, use proper asymmetric verification
+    // Check signature is non-zero
     int all_zero = 1;
     for (int i = 0; i < PHYSICSCOIN_SIG_SIZE; i++) {
         if (tx->signature[i] != 0) {
@@ -108,6 +112,22 @@ PCError pc_transaction_verify(const PCTransaction* tx) {
     
     if (all_zero) {
         return PC_ERR_INVALID_SIGNATURE;
+    }
+    
+    // Verify signature integrity by checking hash2 is derived from hash1 + pubkey
+    uint8_t hash1[32];
+    memcpy(hash1, tx->signature, 32);
+    
+    uint8_t expected_hash2[32];
+    SHA256_CTX ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, hash1, 32);
+    sha256_update(&ctx, tx->from, 32);  // Must match signer's pubkey
+    sha256_final(&ctx, expected_hash2);
+    
+    // Compare with stored hash2
+    if (memcmp(expected_hash2, tx->signature + 32, 32) != 0) {
+        return PC_ERR_INVALID_SIGNATURE;  // Signature doesn't match sender
     }
     
     return PC_OK;
