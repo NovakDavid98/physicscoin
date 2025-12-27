@@ -10,6 +10,14 @@ Replace **500 GB blockchain** with a **244-byte state vector**.
 
 ---
 
+## 📐 [Mathematical Foundation →](MATHEMATICAL_FOUNDATION.md)
+
+PhysicsCoin is built on **DiffEqAuth** principles, where cryptocurrency is modeled as a **dynamical system** governed by differential equations rather than blockchain logs.
+
+**Read how:** [$\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$](MATHEMATICAL_FOUNDATION.md) became a cryptocurrency.
+
+---
+
 ## 🚀 What's New in v2.0
 
 | Feature | Description |
