@@ -31,6 +31,7 @@ SRCS = $(SRC_DIR)/cli/main.c \
        $(SRC_DIR)/consensus/poa_consensus.c \
        $(SRC_DIR)/persistence/wal.c \
        $(SRC_DIR)/api/api.c \
+       $(SRC_DIR)/api/explorer_api.c \
        $(SRC_DIR)/network/node.c \
        $(SRC_DIR)/wallet/wallet.c
 
@@ -55,7 +56,8 @@ LIB_SRCS = $(SRC_DIR)/core/state.c \
            $(SRC_DIR)/consensus/validator.c \
            $(SRC_DIR)/consensus/poa_consensus.c \
            $(SRC_DIR)/persistence/wal.c \
-           $(SRC_DIR)/api/api.c
+           $(SRC_DIR)/api/api.c \
+           $(SRC_DIR)/api/explorer_api.c
 
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 LIB_OBJS = $(LIB_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)

@@ -12,6 +12,17 @@
 #include <arpa/inet.h>
 #include <time.h>
 
+// Explorer API endpoint declarations
+extern void handle_explorer_stats(int client, PCState* state);
+extern void handle_explorer_wallet(int client, PCState* state, const char* address);
+extern void handle_explorer_rich_list(int client, PCState* state);
+extern void handle_explorer_distribution(int client, PCState* state);
+extern void handle_explorer_search(int client, PCState* state, const char* query);
+extern void handle_explorer_consensus(int client);
+extern void handle_explorer_health(int client, PCState* state);
+extern void handle_explorer_state_hash(int client, PCState* state);
+extern void handle_explorer_supply(int client, PCState* state);
+
 #define API_PORT 8545
 #define MAX_REQUEST_SIZE 8192
 
@@ -89,8 +100,8 @@ static void record_transaction(const char* from, const char* to, double amount) 
     tx_history_count++;
 }
 
-// API response helpers
-static void send_json_response(int client, int status, const char* body) {
+// API response helpers (non-static for use by explorer_api.c)
+void send_json_response(int client, int status, const char* body) {
     char response[8192];
     snprintf(response, sizeof(response),
              "HTTP/1.1 %d OK\r\n"
@@ -101,7 +112,7 @@ static void send_json_response(int client, int status, const char* body) {
     send(client, response, strlen(response), 0);
 }
 
-static void send_error(int client, int code, const char* message) {
+void send_error(int client, int code, const char* message) {
     char body[256];
     snprintf(body, sizeof(body), "{\"error\":{\"code\":%d,\"message\":\"%s\"}}", code, message);
     send_json_response(client, 400, body);
@@ -466,6 +477,16 @@ int pc_api_serve(PCState* state, int port) {
             else if (strcmp(path, "/transactions") == 0) handle_transactions(client);
             else if (strcmp(path, "/conservation") == 0) handle_conservation(client, state);
             else if (strncmp(path, "/balance/", 9) == 0) handle_balance(client, state, path + 9);
+            // Explorer endpoints
+            else if (strcmp(path, "/explorer/stats") == 0) handle_explorer_stats(client, state);
+            else if (strcmp(path, "/explorer/rich") == 0) handle_explorer_rich_list(client, state);
+            else if (strcmp(path, "/explorer/distribution") == 0) handle_explorer_distribution(client, state);
+            else if (strcmp(path, "/explorer/consensus") == 0) handle_explorer_consensus(client);
+            else if (strcmp(path, "/explorer/health") == 0) handle_explorer_health(client, state);
+            else if (strcmp(path, "/explorer/state/hash") == 0) handle_explorer_state_hash(client, state);
+            else if (strcmp(path, "/explorer/supply") == 0) handle_explorer_supply(client, state);
+            else if (strncmp(path, "/explorer/wallet/", 17) == 0) handle_explorer_wallet(client, state, path + 17);
+            else if (strncmp(path, "/explorer/search/", 17) == 0) handle_explorer_search(client, state, path + 17);
             else send_error(client, -32601, "Not found");
         }
         else if (strcmp(method, "POST") == 0) {
