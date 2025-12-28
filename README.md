@@ -18,7 +18,7 @@ Replace **500 GB blockchain** with a **244-byte state vector**.
 
 ## ⚛️ **The Physics of Money**
 
-![Mathematical Foundation Animation](datagraphics/physicscoin_math_foundation.gif)
+![Mathematical Foundation Animation](datagraphics/physicscoin_math_v2.gif)
 
 *Security through mathematics, not computation. Conservation laws make double-spending impossible.*
 
