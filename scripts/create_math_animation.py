@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 """
-PhysicsCoin Mathematical Foundation Visualization
-Creates an animated GIF explaining the core concepts:
-1. The DiffEqAuth equation
-2. State vector representation
-3. Conservation law enforcement
-4. Consensus mechanism
-5. Cross-shard protection
+PhysicsCoin Enhanced Visualization
+Creates a premium, informative animated GIF for the repo.
+Optimized for readability, pacing, and visual appeal.
 """
 
 import matplotlib.pyplot as plt
@@ -16,355 +12,318 @@ from matplotlib.patches import FancyBboxPatch, Circle, Arrow, FancyArrowPatch
 import numpy as np
 from matplotlib import patheffects
 import os
+import math
 
-# Set up figure with dark theme
-plt.style.use('dark_background')
-fig, ax = plt.subplots(figsize=(16, 9), dpi=100)
-fig.patch.set_facecolor('#0d1117')
-ax.set_facecolor('#0d1117')
+# ---- CONFIGURATION ----
+FPS = 20
+SECONDS_PER_SCENE = 5.0
+SCENES = [
+    'intro',        # The Problem vs Solution
+    'equation',     # The Math
+    'state',        # 244 Bytes vs 500 GB
+    'performance',  # 116K TPS vs Others
+    'streaming',    # Money as fluid
+    'consensus',    # POC & Conservation
+    'iot',          # M2M Economy
+    'summary'       # The "Why"
+]
+TOTAL_FRAMES = int(FPS * SECONDS_PER_SCENE * len(SCENES))
 
-# Remove axes
-ax.set_xlim(0, 16)
-ax.set_ylim(0, 9)
-ax.axis('off')
-
-# Color scheme
-COLORS = {
-    'primary': '#58a6ff',
-    'secondary': '#8b949e',
-    'success': '#3fb950',
-    'warning': '#d29922',
-    'error': '#f85149',
-    'purple': '#a371f7',
-    'bg_card': '#161b22',
-    'bg_card2': '#21262d',
-    'white': '#ffffff',
-    'gold': '#ffd700'
+# Theme Colors (GitHub Dark Dimmed inspired + Neon accents)
+C = {
+    'bg': '#1c2128',       # Darker background
+    'text': '#adbac7',     # Main text
+    'muted': '#768390',    # Subtitles
+    'blue': '#539bf5',     # Primary accent
+    'green': '#57ab5a',    # Success
+    'red': '#e5534b',      # Error/Blockchain
+    'gold': '#db6d28',     # Warning/Gold
+    'purple': '#8957e5',   # Math/Science
+    'cyan': '#39c5cf',     # Future/IoT
+    'card': '#2d333b',     # Card background
 }
 
-# Animation frames
-frames = []
-TOTAL_FRAMES = 180  # 6 seconds at 30fps
+def setup_plot():
+    """Setup the matplotlib figure"""
+    plt.style.use('dark_background')
+    fig, ax = plt.subplots(figsize=(12, 6.75), dpi=120) # 16:9 aspect ratio
+    fig.patch.set_facecolor(C['bg'])
+    ax.set_facecolor(C['bg'])
+    
+    # Remove all axes
+    ax.set_xlim(0, 16)
+    ax.set_ylim(0, 9)
+    ax.axis('off')
+    return fig, ax
 
-def create_frame(frame_num):
-    """Generate a single frame of the animation"""
+def draw_card(ax, x, y, w, h, color=C['card'], alpha=1.0, edge_color=None):
+    """Refined helper for drawing rounded cards"""
+    if edge_color is None: edge_color = color
+    box = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1,rounding_size=0.2",
+                         facecolor=color, edgecolor=edge_color, alpha=alpha, zorder=1)
+    ax.add_patch(box)
+    return box
+
+def draw_text(ax, x, y, text, size=12, color=C['text'], align='center', weight='normal', alpha=1.0, glow=None):
+    """Helper for drawing text with optional glow"""
+    effects = [patheffects.withStroke(linewidth=3, foreground=C['bg'])]
+    if glow:
+        effects.append(patheffects.withStroke(linewidth=5, foreground=glow, alpha=0.5))
+        
+    t = ax.text(x, y, text, fontsize=size, ha=align, va='center', 
+                color=color, fontweight=weight, alpha=alpha, zorder=10,
+                path_effects=effects)
+    return t
+
+def render_frame(frame_num, ax):
+    """Render a single frame"""
     ax.clear()
     ax.set_xlim(0, 16)
     ax.set_ylim(0, 9)
     ax.axis('off')
-    ax.set_facecolor('#0d1117')
     
-    # Calculate which phase we're in (0-5)
-    phase = min(5, frame_num // 30)
-    phase_progress = (frame_num % 30) / 30.0
+    # Global Header (Fixed position)
+    draw_text(ax, 8, 8.2, "PHYSICSCOIN", size=28, weight='bold', color=C['blue'], glow=C['blue'])
     
-    # Always show title with glow effect
-    title = ax.text(8, 8.5, 'PhysicsCoin', fontsize=36, ha='center', va='top',
-                   color=COLORS['primary'], fontweight='bold',
-                   path_effects=[patheffects.withStroke(linewidth=3, foreground='#1f6feb40')])
+    # Calculate scene
+    scene_idx = frame_num // int(FPS * SECONDS_PER_SCENE)
+    if scene_idx >= len(SCENES): scene_idx = len(SCENES) - 1
+    scene_name = SCENES[scene_idx]
     
-    subtitle = ax.text(8, 7.9, 'Mathematical Foundation', fontsize=18, ha='center',
-                      color=COLORS['secondary'])
+    # Scene progress (0.0 to 1.0)
+    scene_frames = FPS * SECONDS_PER_SCENE
+    local_frame = frame_num % scene_frames
+    p = local_frame / scene_frames
     
-    if phase == 0:  # The Equation
-        draw_equation_phase(ax, phase_progress)
-    elif phase == 1:  # State Vector
-        draw_state_vector_phase(ax, phase_progress)
-    elif phase == 2:  # Conservation Law
-        draw_conservation_phase(ax, phase_progress)
-    elif phase == 3:  # POC Consensus
-        draw_consensus_phase(ax, phase_progress)
-    elif phase == 4:  # Cross-Shard
-        draw_crossshard_phase(ax, phase_progress)
-    else:  # Summary
-        draw_summary_phase(ax, phase_progress)
-    
-    # Progress indicator
-    progress = frame_num / TOTAL_FRAMES
-    ax.add_patch(FancyBboxPatch((1, 0.3), 14 * progress, 0.15, 
-                                boxstyle="round,pad=0.02",
-                                facecolor=COLORS['primary'], alpha=0.8))
-    ax.add_patch(FancyBboxPatch((1, 0.3), 14, 0.15, 
-                                boxstyle="round,pad=0.02",
-                                facecolor='none', edgecolor=COLORS['secondary'], linewidth=1))
-
-def draw_equation_phase(ax, progress):
-    """Phase 0: The DiffEqAuth Equation"""
-    # Phase title
-    ax.text(8, 7.2, '① The Core Equation', fontsize=20, ha='center',
-           color=COLORS['gold'], fontweight='bold')
-    
-    # Main equation with fade-in
-    alpha = min(1.0, progress * 2)
-    eq_text = r'$\frac{d\Psi}{dt} = \alpha \cdot I - \beta \cdot R - \gamma \cdot \Psi$'
-    ax.text(8, 5.5, eq_text, fontsize=28, ha='center', va='center',
-           color=COLORS['white'], alpha=alpha)
-    
-    # Component labels appearing one by one
-    if progress > 0.3:
-        ax.text(3, 4, r'$\Psi$ = State Vector', fontsize=14, color=COLORS['primary'],
-               alpha=min(1.0, (progress - 0.3) * 3))
-    if progress > 0.5:
-        ax.text(3, 3.3, r'$I$ = Transactions', fontsize=14, color=COLORS['success'],
-               alpha=min(1.0, (progress - 0.5) * 3))
-    if progress > 0.7:
-        ax.text(10, 4, r'$R$ = Conservation', fontsize=14, color=COLORS['warning'],
-               alpha=min(1.0, (progress - 0.7) * 3))
-    if progress > 0.9:
-        ax.text(10, 3.3, r'$\gamma\Psi$ = Hash Stability', fontsize=14, color=COLORS['purple'],
-               alpha=min(1.0, (progress - 0.9) * 3))
-    
-    # Bottom message
-    ax.text(8, 1.5, 'Security emerges from mathematics, not computation',
-           fontsize=14, ha='center', color=COLORS['secondary'], style='italic')
-
-def draw_state_vector_phase(ax, progress):
-    """Phase 1: State Vector visualization"""
-    ax.text(8, 7.2, '② State Vector: 244 Bytes', fontsize=20, ha='center',
-           color=COLORS['gold'], fontweight='bold')
-    
-    # Draw blockchain on left (fading out)
-    bc_alpha = max(0.3, 1 - progress)
-    ax.add_patch(FancyBboxPatch((1, 3), 4, 3.5, boxstyle="round,pad=0.1",
-                               facecolor=COLORS['bg_card'], edgecolor=COLORS['error'],
-                               alpha=bc_alpha))
-    ax.text(3, 6, 'Blockchain', fontsize=14, ha='center', color=COLORS['error'],
-           fontweight='bold', alpha=bc_alpha)
-    
-    # Stack of blocks
-    for i in range(4):
-        y = 5.2 - i * 0.55
-        ax.add_patch(FancyBboxPatch((1.5, y), 3, 0.45, boxstyle="round,pad=0.02",
-                                   facecolor=COLORS['bg_card2'], edgecolor=COLORS['secondary'],
-                                   alpha=bc_alpha * 0.7))
-    ax.text(3, 3.5, '500 GB', fontsize=16, ha='center', color=COLORS['error'],
-           fontweight='bold', alpha=bc_alpha)
-    
-    # Arrow
-    arrow_progress = min(1.0, progress * 2)
-    ax.annotate('', xy=(9, 4.75), xytext=(6.5, 4.75),
-               arrowprops=dict(arrowstyle='->', color=COLORS['primary'],
-                             lw=3, mutation_scale=20),
-               alpha=arrow_progress)
-    
-    # State vector on right (fading in)
-    sv_alpha = min(1.0, progress * 1.5)
-    ax.add_patch(FancyBboxPatch((9.5, 3), 5, 3.5, boxstyle="round,pad=0.1",
-                               facecolor=COLORS['bg_card'], edgecolor=COLORS['success'],
-                               alpha=sv_alpha))
-    ax.text(12, 6, 'State Vector', fontsize=14, ha='center', color=COLORS['success'],
-           fontweight='bold', alpha=sv_alpha)
-    
-    # State components
-    components = ['state_hash[32]', 'total_supply', 'wallets[]', 'timestamp']
-    for i, comp in enumerate(components):
-        y = 5.2 - i * 0.55
-        ax.add_patch(FancyBboxPatch((10, y), 4, 0.45, boxstyle="round,pad=0.02",
-                                   facecolor=COLORS['primary'], alpha=sv_alpha * 0.3))
-        ax.text(12, y + 0.22, comp, fontsize=11, ha='center', va='center',
-               color=COLORS['white'], alpha=sv_alpha)
-    
-    ax.text(12, 3.5, '244 bytes', fontsize=16, ha='center', color=COLORS['success'],
-           fontweight='bold', alpha=sv_alpha)
-    
-    # Compression ratio
-    ax.text(8, 1.5, '2,000,000,000:1 compression ratio',
-           fontsize=14, ha='center', color=COLORS['gold'], fontweight='bold')
-
-def draw_conservation_phase(ax, progress):
-    """Phase 2: Conservation Law"""
-    ax.text(8, 7.2, '③ Conservation Law', fontsize=20, ha='center',
-           color=COLORS['gold'], fontweight='bold')
-    
-    # The constraint equation
-    ax.text(8, 5.8, r'$\sum_{i=0}^{n} E_i = E_{total}$', fontsize=24, ha='center',
-           color=COLORS['white'])
-    
-    # Wallets visualization
-    total = 1000
-    wallets = [300, 250, 200, 150, 100]
-    colors = [COLORS['primary'], COLORS['success'], COLORS['warning'], 
-              COLORS['purple'], COLORS['secondary']]
-    
-    x_start = 3
-    for i, (bal, col) in enumerate(zip(wallets, colors)):
-        width = bal / 100
-        alpha = min(1.0, (progress - i * 0.15) * 4) if progress > i * 0.15 else 0
-        rect = FancyBboxPatch((x_start, 3.5), width, 1, boxstyle="round,pad=0.02",
-                             facecolor=col, alpha=alpha * 0.7)
-        ax.add_patch(rect)
-        if alpha > 0.5:
-            ax.text(x_start + width/2, 4, f'{bal}', fontsize=10, ha='center',
-                   va='center', color=COLORS['white'], alpha=alpha)
-        x_start += width + 0.1
-    
-    # Sum arrow
-    if progress > 0.7:
-        ax.annotate('', xy=(14, 4), xytext=(13, 4),
-                   arrowprops=dict(arrowstyle='->', color=COLORS['success'], lw=2))
-        ax.text(14.5, 4, '= 1000', fontsize=16, ha='left', va='center',
-               color=COLORS['success'], fontweight='bold')
-    
-    # Invalid state example
-    if progress > 0.85:
-        ax.add_patch(FancyBboxPatch((3, 1.5), 10, 1.2, boxstyle="round,pad=0.1",
-                                   facecolor=COLORS['error'], alpha=0.2,
-                                   edgecolor=COLORS['error']))
-        ax.text(8, 2.1, 'If sum ≠ total → PC_ERR_CONSERVATION_VIOLATED',
-               fontsize=13, ha='center', color=COLORS['error'], fontweight='bold')
-
-def draw_consensus_phase(ax, progress):
-    """Phase 3: POC Consensus"""
-    ax.text(8, 7.2, '④ Proof-of-Conservation Consensus', fontsize=20, ha='center',
-           color=COLORS['gold'], fontweight='bold')
-    
-    # Three phases
-    phases = ['PRE-PREPARE', 'PREPARE', 'COMMIT']
-    phase_colors = [COLORS['primary'], COLORS['warning'], COLORS['success']]
-    
-    for i, (phase_name, col) in enumerate(zip(phases, phase_colors)):
-        x = 3 + i * 4.5
-        alpha = min(1.0, (progress - i * 0.25) * 3) if progress > i * 0.25 else 0
+    # Draw scene content
+    if scene_name == 'intro':
+        scene_intro(ax, p)
+    elif scene_name == 'equation':
+        scene_equation(ax, p)
+    elif scene_name == 'state':
+        scene_state(ax, p)
+    elif scene_name == 'performance':
+        scene_performance(ax, p)
+    elif scene_name == 'streaming':
+        scene_streaming(ax, p)
+    elif scene_name == 'consensus':
+        scene_consensus(ax, p)
+    elif scene_name == 'iot':
+        scene_iot(ax, p)
+    elif scene_name == 'summary':
+        scene_summary(ax, p)
         
-        # Phase box
-        ax.add_patch(FancyBboxPatch((x, 4), 3.5, 2, boxstyle="round,pad=0.1",
-                                   facecolor=COLORS['bg_card'], edgecolor=col,
-                                   alpha=alpha, linewidth=2))
-        ax.text(x + 1.75, 5.5, phase_name, fontsize=12, ha='center',
-               color=col, fontweight='bold', alpha=alpha)
-        
-        # Phase description
-        if i == 0:
-            desc = 'Leader proposes\nΨ → Ψ\''
-        elif i == 1:
-            desc = 'Validators verify\nΣ balances = total'
-        else:
-            desc = '2/3 quorum\n→ Finalize'
-        ax.text(x + 1.75, 4.6, desc, fontsize=10, ha='center', va='center',
-               color=COLORS['white'], alpha=alpha)
-        
-        # Arrows between phases
-        if i < 2 and alpha > 0.5:
-            ax.annotate('', xy=(x + 4, 5), xytext=(x + 3.7, 5),
-                       arrowprops=dict(arrowstyle='->', color=COLORS['secondary'], lw=2))
-    
-    # Bottom: The key insight
-    if progress > 0.8:
-        ax.add_patch(FancyBboxPatch((2, 1.3), 12, 1.5, boxstyle="round,pad=0.1",
-                                   facecolor=COLORS['success'], alpha=0.15,
-                                   edgecolor=COLORS['success']))
-        ax.text(8, 2.3, 'Byzantine validators cannot create money', fontsize=14,
-               ha='center', color=COLORS['success'], fontweight='bold')
-        ax.text(8, 1.7, 'Conservation law is verified by ALL honest nodes',
-               fontsize=12, ha='center', color=COLORS['white'])
+    # Progress Bar at bottom
+    total_p = frame_num / TOTAL_FRAMES
+    draw_card(ax, 0, 0, 16 * total_p, 0.15, color=C['blue'])
 
-def draw_crossshard_phase(ax, progress):
-    """Phase 4: Cross-Shard Protection"""
-    ax.text(8, 7.2, '⑤ Cross-Shard Double-Spend Prevention', fontsize=20, ha='center',
-           color=COLORS['gold'], fontweight='bold')
-    
-    # Draw two shards
-    shard_alpha = min(1.0, progress * 2)
-    
-    # Shard A
-    ax.add_patch(FancyBboxPatch((1.5, 3), 5, 3.5, boxstyle="round,pad=0.1",
-                               facecolor=COLORS['bg_card'], edgecolor=COLORS['primary'],
-                               alpha=shard_alpha))
-    ax.text(4, 6, 'Shard A', fontsize=14, ha='center', color=COLORS['primary'],
-           fontweight='bold', alpha=shard_alpha)
-    
-    # Shard B
-    ax.add_patch(FancyBboxPatch((9.5, 3), 5, 3.5, boxstyle="round,pad=0.1",
-                               facecolor=COLORS['bg_card'], edgecolor=COLORS['purple'],
-                               alpha=shard_alpha))
-    ax.text(12, 6, 'Shard B', fontsize=14, ha='center', color=COLORS['purple'],
-           fontweight='bold', alpha=shard_alpha)
-    
-    # Alice trying to double-spend
-    if progress > 0.3:
-        alice_alpha = min(1.0, (progress - 0.3) * 3)
-        # Draw Alice
-        circle = Circle((4, 4.5), 0.4, facecolor=COLORS['warning'], alpha=alice_alpha)
-        ax.add_patch(circle)
-        ax.text(4, 4.5, 'A', fontsize=14, ha='center', va='center',
-               color=COLORS['bg_card'], fontweight='bold', alpha=alice_alpha)
-        ax.text(4, 3.8, 'Alice: 100', fontsize=10, ha='center',
-               color=COLORS['white'], alpha=alice_alpha)
-    
-    # First transaction (valid)
-    if progress > 0.5:
-        tx1_alpha = min(1.0, (progress - 0.5) * 3)
-        ax.annotate('', xy=(9.5, 5), xytext=(6.5, 5),
-                   arrowprops=dict(arrowstyle='->', color=COLORS['success'], lw=2),
-                   alpha=tx1_alpha)
-        ax.text(8, 5.4, 'TX1: 100 → Bob', fontsize=10, ha='center',
-               color=COLORS['success'], alpha=tx1_alpha)
-        ax.text(8, 4.7, '🔒 LOCKED', fontsize=12, ha='center',
-               color=COLORS['gold'], fontweight='bold', alpha=tx1_alpha)
-    
-    # Second transaction (blocked)
-    if progress > 0.7:
-        tx2_alpha = min(1.0, (progress - 0.7) * 3)
-        ax.annotate('', xy=(9.5, 3.7), xytext=(6.5, 3.7),
-                   arrowprops=dict(arrowstyle='->', color=COLORS['error'], lw=2,
-                                 linestyle='dashed'),
-                   alpha=tx2_alpha)
-        ax.text(8, 4.1, 'TX2: 100 → Carol', fontsize=10, ha='center',
-               color=COLORS['error'], alpha=tx2_alpha)
-        ax.text(8, 3.4, '❌ BLOCKED', fontsize=12, ha='center',
-               color=COLORS['error'], fontweight='bold', alpha=tx2_alpha)
-    
-    # Bottom message
-    ax.text(8, 1.5, 'Global locks + Conservation = Zero double-spend',
-           fontsize=14, ha='center', color=COLORS['gold'], fontweight='bold')
+# ---- SCENE FUNCTIONS ----
 
-def draw_summary_phase(ax, progress):
-    """Phase 5: Summary"""
-    ax.text(8, 7.2, '⚛️ PhysicsCoin: Mathematics, Not Mining', fontsize=20, ha='center',
-           color=COLORS['gold'], fontweight='bold')
+def scene_intro(ax, p):
+    draw_text(ax, 8, 7.2, "The Paradigm Shift", size=16, color=C['muted'])
     
-    # Key points with icons
-    points = [
-        ('💾', '244 bytes vs 500 GB', COLORS['primary']),
-        ('⚡', '116K verify/sec', COLORS['success']),
-        ('🔒', 'Conservation = Security', COLORS['warning']),
-        ('🌐', 'POC Consensus', COLORS['purple']),
-        ('♾️', 'Double-spend impossible', COLORS['gold']),
+    # animate items entering
+    if p > 0.1:
+        # Left side: Old Way
+        a1 = min(1, (p-0.1)*3)
+        draw_card(ax, 1, 2, 6, 4, color=C['card'], alpha=a1, edge_color=C['red'])
+        draw_text(ax, 4, 5.5, "OLD PARADIGM", size=14, color=C['red'], weight='bold', alpha=a1)
+        draw_text(ax, 4, 4.5, "Accountants & Ledgers", size=12, alpha=a1)
+        draw_text(ax, 4, 3.8, "Mining (Wasted Energy)", size=12, alpha=a1)
+        draw_text(ax, 4, 3.1, "Discrete Logic (Check rules)", size=12, alpha=a1)
+
+    if p > 0.4:
+        # Arrow
+        a2 = min(1, (p-0.4)*3)
+        draw_text(ax, 8, 4, "VS", size=20, weight='bold', alpha=a2)
+
+    if p > 0.6:
+        # Right side: New Way
+        a3 = min(1, (p-0.6)*3)
+        draw_card(ax, 9, 2, 6, 4, color=C['card'], alpha=a3, edge_color=C['green'])
+        draw_text(ax, 12, 5.5, "NEW PARADIGM", size=14, color=C['green'], weight='bold', alpha=a3)
+        draw_text(ax, 12, 4.5, "Physics & State Vectors", size=12, alpha=a3)
+        draw_text(ax, 12, 3.8, "Conservation (Nature's Law)", size=12, alpha=a3)
+        draw_text(ax, 12, 3.1, "Continuous Dynamics (Calculus)", size=12, alpha=a3)
+
+def scene_equation(ax, p):
+    draw_text(ax, 8, 7.2, "Security Through Mathematics", size=16, color=C['muted'])
+    
+    # The Equation central
+    a_eq = min(1, p*2)
+    latex = r'$\frac{d\Psi}{dt} = \alpha I - \beta R - \gamma \Psi$'
+    ax.text(8, 5, latex, fontsize=36, ha='center', va='center', color=C['text'], alpha=a_eq)
+    
+    # Annotations appearing sequence
+    if p > 0.3:
+        draw_text(ax, 4, 3, "Transactions (Force)", color=C['blue'], size=14, alpha=min(1, (p-0.3)*4))
+        # Line to alpha I
+        if p > 0.35: ax.add_patch(Arrow(4, 3.3, 2, 1.2, width=0.5, color=C['blue'], alpha=0.5))
+
+    if p > 0.5:
+        draw_text(ax, 12, 3, "Conservation (Resistance)", color=C['gold'], size=14, alpha=min(1, (p-0.5)*4))
+        # Line to beta R
+        if p > 0.55: ax.add_patch(Arrow(12, 3.3, -2, 1.2, width=0.5, color=C['gold'], alpha=0.5))
+
+    if p > 0.7:
+        draw_text(ax, 8, 2, "State Stability (Decay)", color=C['purple'], size=14, alpha=min(1, (p-0.7)*4))
+        
+    if p > 0.85:
+         draw_text(ax, 8, 1, "A Dynamical System, Not a Ledger", color=C['green'], size=14, weight='bold', glow=C['green'])
+
+def scene_state(ax, p):
+    draw_text(ax, 8, 7.2, "2,000,000,000:1 Compression", size=16, color=C['muted'])
+    
+    # Visual comparison scale
+    
+    # 500 GB Block
+    draw_card(ax, 2, 2, 4, 4, C['red'], alpha=0.3)
+    draw_text(ax, 4, 4.5, "Blockchain", color=C['red'], size=18, weight='bold')
+    draw_text(ax, 4, 3.5, "500 GB", color=C['text'], size=24, weight='bold')
+    draw_text(ax, 4, 2.8, "History Log", color=C['muted'], size=12)
+
+    # Transition
+    if p > 0.3:
+        draw_text(ax, 8, 4, ">>>", size=20, alpha=min(1, (p-0.3)*3))
+        
+    # 244 Bytes
+    if p > 0.5:
+        a = min(1, (p-0.5)*3)
+        draw_card(ax, 10, 3.5, 4, 1, C['green'], alpha=a) # Tiny box
+        draw_text(ax, 12, 4.0, "State Vector", color=C['green'], size=18, weight='bold', alpha=a)
+        draw_text(ax, 12, 3.0, "244 BYTES", color=C['text'], size=24, weight='bold', alpha=a)
+        draw_text(ax, 12, 2.3, "Current State Only", color=C['muted'], size=12, alpha=a)
+
+def scene_performance(ax, p):
+    draw_text(ax, 8, 7.2, "Speed & Throughput", size=16, color=C['muted'])
+    
+    # Bar Chart
+    names = ['Bitcoin', 'Ethereum', 'Solana', 'PhysicsCoin']
+    vals = [7, 30, 65000, 116000] # Log scale for visualization? No, linear bar just shooting off screen
+    colors = [C['red'], C['purple'], C['blue'], C['green']]
+    
+    y_pos = [5.5, 4.5, 3.5, 2.5]
+    
+    for i, (name, val, col, y) in enumerate(zip(names, vals, colors, y_pos)):
+        appear = 0.2 + i*0.15
+        if p > appear:
+            w_max = 12
+            # normalize roughly to 120k
+            w = (val / 120000) * w_max
+            w = max(0.2, w)
+            draw_card(ax, 2, y-0.3, w, 0.6, col)
+            draw_text(ax, 1.5, y, name, align='right', size=12)
+            draw_text(ax, 2 + w + 0.5, y, f"{val:,} TPS", align='left', size=12, weight='bold', color=col)
+
+def scene_streaming(ax, p):
+    draw_text(ax, 8, 7.2, "Native Streaming Payments", size=16, color=C['muted'])
+
+    # Equation integral
+    draw_text(ax, 8, 5.5, r"$\Delta \Psi = \int_{t_0}^{t_1} I(t) dt$", size=24, color=C['blue'])
+    
+    if p > 0.3:
+        # Pipe visualization
+        draw_card(ax, 3, 3, 10, 1, color='#333333')
+        
+        # Flowing particles
+        offset = (p * 20) % 2
+        for i in range(10):
+            cx = 3.5 + i + offset
+            if 3 <= cx <= 13:
+                c =  Circle((cx, 3.5), 0.2, color=C['blue'])
+                ax.add_patch(c)
+                
+        draw_text(ax, 8, 2.5, "Continuous Money Flow (Not Discrete Blocks)", size=14)
+        draw_text(ax, 2, 3.5, "Alice", size=14, align='right')
+        draw_text(ax, 14, 3.5, "Bob", size=14, align='left')
+
+def scene_consensus(ax, p):
+    draw_text(ax, 8, 7.2, "Proof-of-Conservation Consensus", size=16, color=C['muted'])
+    
+    # Logic flow
+    draw_text(ax, 8, 6, "Can a validator cheat?", size=14)
+    
+    if p > 0.2:
+        draw_card(ax, 3, 3.5, 3, 1.5, C['red'], alpha=0.5)
+        draw_text(ax, 4.5, 4.25, "Malicious Node", size=10, weight='bold')
+        draw_text(ax, 4.5, 3.8, "Creates +100 Coins", size=10, color=C['red'])
+
+    if p > 0.4:
+         # Arrow
+        ax.add_patch(FancyArrowPatch((6.5, 4.25), (8.5, 4.25), color=C['muted']))
+
+    if p > 0.5:
+        # Physics Check
+        draw_card(ax, 9, 3, 4, 2.5, C['green'], alpha=0.2, edge_color=C['green'])
+        draw_text(ax, 11, 4.8, "The Laws of Physics", color=C['green'], weight='bold')
+        draw_text(ax, 11, 4.2, r"$\sum E_{in} \neq \sum E_{out}$", color=C['text'], size=14)
+        draw_text(ax, 11, 3.6, "VIOLATION DETECTED", color=C['red'], weight='bold', size=12)
+        
+    if p > 0.8:
+        draw_text(ax, 8, 1.5, "Math makes cheating IMPOSSIBLE (not just expensive)", color=C['gold'], size=14)
+
+def scene_iot(ax, p):
+    draw_text(ax, 8, 7.2, "The Economy of Things", size=16, color=C['muted'])
+    
+    # Network of devices
+    devices = [
+        (4, 5, "Toaster Node"),
+        (8, 3, "Car Charger"),
+        (12, 5, "Drone Delivery"),
+        (8, 6, "AI Agent")
     ]
     
-    for i, (icon, text, color) in enumerate(points):
-        alpha = min(1.0, (progress - i * 0.15) * 4) if progress > i * 0.15 else 0
-        y = 5.5 - i * 0.8
-        
-        ax.add_patch(FancyBboxPatch((3, y - 0.3), 10, 0.6, boxstyle="round,pad=0.05",
-                                   facecolor=color, alpha=alpha * 0.15,
-                                   edgecolor=color))
-        ax.text(4, y, f'{icon}  {text}', fontsize=16, ha='left', va='center',
-               color=color, fontweight='bold', alpha=alpha)
+    # Connections
+    if p > 0.2:
+        for i in range(len(devices)):
+            for j in range(i+1, len(devices)):
+                x1, y1, _ = devices[i]
+                x2, y2, _ = devices[j]
+                ax.plot([x1, x2], [y1, y2], color=C['blue'], alpha=0.3, linewidth=1)
     
-    # Final tagline
-    if progress > 0.8:
-        ax.text(8, 1.5, 'The math doesn\'t lie. The physics doesn\'t break.',
-               fontsize=16, ha='center', color=COLORS['white'], 
-               fontweight='bold', style='italic')
+    # Nodes
+    if p > 0.4:
+        for x, y, labels in devices:
+            alpha = min(1, (p-0.4)*3)
+            # draw_circle(ax, x, y, 0.8, color=C['card'], border=C['cyan'])
+            c = Circle((x, y), 0.6, facecolor=C['card'], edgecolor=C['cyan'], linewidth=2, zorder=5, alpha=alpha)
+            ax.add_patch(c)
+            draw_text(ax, x, y-1, labels, size=10, color=C['cyan'], alpha=alpha)
 
-# Create animation
-def animate(frame):
-    create_frame(frame)
-    return []
+    if p > 0.7:
+        draw_text(ax, 8, 1.5, "Micro-transactions + Low Power + No History = M2M Native", size=14)
 
-print("Creating PhysicsCoin Mathematical Foundation animation...")
-print(f"Total frames: {TOTAL_FRAMES}")
+def scene_summary(ax, p):
+    # Summary list
+    items = [
+        ("⚛️ Physics-Based", "No mining, just math"),
+        ("🚀 116,000 TPS", "Faster than Visa/Solana"),
+        ("💾 244 Byte State", "Download in milliseconds"),
+        ("🌊 Streaming Money", "Pay-per-second native"),
+        ("🔒 Unbreakable", "Consensus via Conservation")
+    ]
+    
+    for i, (head, sub) in enumerate(items):
+        appear = i * 0.15
+        if p > appear:
+            y = 7.5 - i * 1.3
+            alpha = min(1, (p-appear)*4)
+            # Icon/Header
+            draw_text(ax, 3, y, head, size=18, align='left', weight='bold', color=C['text'], alpha=alpha)
+            # Desc
+            draw_text(ax, 13, y, sub, size=14, align='right', color=C['blue'], alpha=alpha)
+            
+            # Divider line
+            if i < len(items)-1:
+                ax.plot([3, 13], [y-0.6, y-0.6], color=C['card'], lw=1, alpha=alpha*0.5)
 
-ani = animation.FuncAnimation(fig, animate, frames=TOTAL_FRAMES, 
-                               interval=33, blit=False)
+# Initialize and run
+fig, ax = setup_plot()
+print(f"Rendering {TOTAL_FRAMES} frames ({len(SCENES)} scenes x {SECONDS_PER_SCENE}s @ {FPS}fps)")
+ani = animation.FuncAnimation(fig, render_frame, fargs=(ax,), frames=TOTAL_FRAMES, interval=1000/FPS)
 
-# Save as GIF
-output_path = 'datagraphics/physicscoin_math_foundation.gif'
+# Ensure directory exists
 os.makedirs('datagraphics', exist_ok=True)
-
-print(f"Saving animation to {output_path}...")
-ani.save(output_path, writer='pillow', fps=30, dpi=100)
-
-print(f"✓ Animation saved to {output_path}")
-print(f"  Size: {os.path.getsize(output_path) / 1024:.1f} KB")
+output_file = 'datagraphics/physicscoin_math_foundation.gif'
+ani.save(output_file, writer='pillow', fps=FPS, dpi=100)
+print(f"Done! Saved to {output_file}")
